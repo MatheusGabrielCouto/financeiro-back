@@ -1,0 +1,140 @@
+@baseUrl = http://localhost:3333
+@authToken = {{authenticate.response.body.access_token}}
+
+###
+# @name authenticate
+POST {{baseUrl}}/sessions
+Content-Type: application/json
+
+{
+	"email": "admin1@admin.com",
+	"password": "123456"
+}
+
+###
+
+# @name create_account
+POST {{baseUrl}}/accounts
+Content-Type: application/json
+
+{
+	"email": "admin1@admin.com",
+	"name": "Jon Doe 1",
+	"password": "123456"
+}
+
+###
+
+#! Categorias
+
+# @name list_categories
+GET {{baseUrl}}/category
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_category
+POST {{baseUrl}}/category
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Boletos",
+	"description": "Boletos de banco"
+}
+
+###
+
+#! Transactions
+
+# @name list_transactions
+GET {{baseUrl}}/transaction
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_category
+POST {{baseUrl}}/transaction
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"message": "boleto da gazin",
+	"value": 142,
+	"categories": ["1545b834-c3ca-41f6-adac-68129e2e4a9c"],
+	"type": "PAY"
+}
+
+###
+
+#! Debt
+
+# @name list_debt
+GET {{baseUrl}}/debt
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_debt
+POST {{baseUrl}}/debt
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Gazin",
+	"description": "pagamento da gazin",
+	"instalments": [
+		{
+			"value": 100,
+			"status": "SCHEDULE"
+		},
+		{
+			"value": 100,
+			"status": "SCHEDULE"
+		},
+		{
+			"value": 50,
+			"status": "SCHEDULE"
+		}
+	]
+}
+
+###
+
+# @name delete_debt
+DELETE {{baseUrl}}/debt/ec748c68-e06b-4159-9522-582e8067dc26
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+#! Installment
+
+# @name pay_installment
+PATCH {{baseUrl}}/installment/56f36178-8e09-4bbf-8e09-ede6f61b3762
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name crete_installment
+POST {{baseUrl}}/installment
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"value": 99,
+	"debtId": "f5af80ca-e1b7-4fc7-a0a0-fbd5c58b682f"
+}
+
+###
+
+# @name delete_installment
+DELETE {{baseUrl}}/installment/18f5c807-a19e-4422-bb53-c5bf26b69e3f
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###

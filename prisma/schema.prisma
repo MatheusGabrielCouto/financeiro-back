@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  amount Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  categories Category[]
+  debts Debt[]
+
+  @@map("users")
+}
+
+model Category {
+  id String @id @default(uuid())
+  title String @unique
+  description String
+
+  userId String
+  user User @relation(fields: [userId], references: [id])
+
+  transactions TransactionOnCategory[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+model Transaction {
+  id String @id @default(uuid())
+  value Int
+  message String
+
+  categories TransactionOnCategory[]
+  type TypeTransaction
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("transactions")
+}
+
+
+model TransactionOnCategory {
+  transactionId String
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  categoryId    String
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, categoryId])
+  @@map("transaction_categories")
+}
+
+model Debt {
+  id String @id @default(uuid())
+  title String
+  description String
+
+  userId String
+  user User @relation(fields: [userId], references: [id])
+
+  installments Installment[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("debts")
+}
+
+model Installment {
+  id String @id @default(uuid())
+  value Int
+  status StatusInstallment
+  order Int
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  debtId String
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@map("installments")
+}
+
+enum TypeTransaction {
+  DEBIT
+  CREDIT
+  PAY
+}
+
+enum StatusInstallment {
+  PAY
+  SCHEDULE
+}
