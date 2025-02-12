@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:3333
+@baseUrl = https://financeiro-back.onrender.com
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -7,8 +7,8 @@ POST {{baseUrl}}/sessions
 Content-Type: application/json
 
 {
-	"email": "admin1@admin.com",
-	"password": "123456"
+	"email": "admin@admin.com",
+	"password": "admin"
 }
 
 ###
