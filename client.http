@@ -41,8 +41,8 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"title": "Boletos",
-	"description": "Boletos de banco"
+	"title": "Salario",
+	"description": "Pagamento salario"
 }
 
 ###
@@ -62,10 +62,10 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"message": "boleto da moto 2",
-	"value": 145.15,
-	"categories": ["18d74457-df3c-4b91-8fc4-6313fa6397ed"],
-	"type": "PAY"
+	"message": "Cigam",
+	"value": 238.59,
+	"categories": ["fa917ff4-20ef-4022-8adc-6764bfcf28e6"],
+	"type": "CREDIT"
 }
 
 ###

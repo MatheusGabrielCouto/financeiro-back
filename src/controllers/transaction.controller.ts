@@ -71,6 +71,22 @@ export class TransactionController {
       throw new NotFoundException('Uma ou mais categorias não existem');
     }
 
+    const findUser = await this.prisma.user.findUnique({
+      where: {
+        id: user.sub
+      }
+    })
+
+    if (!findUser) {
+      throw new NotFoundException('Usuário não encontrado!')
+    }
+
+    if(type === 'PAY') {
+      if(findUser.amount - value < 0) {
+        throw new NotFoundException('Saldo em conta insuficiente')
+      }
+    }
+
     // 2️⃣ Criar a transação primeiro
     const transaction = await this.prisma.transaction.create({
       data: {
@@ -79,6 +95,15 @@ export class TransactionController {
         type,
       },
     });
+
+    await this.prisma.user.update({
+      where: {
+        id: user.sub
+      },
+      data: {
+        amount: type === 'PAY' || type === 'DEBIT' ? findUser?.amount - value : findUser?.amount + value
+      }
+    })
 
     // 3️⃣ Associar as categorias depois
     await this.prisma.transactionOnCategory.createMany({
