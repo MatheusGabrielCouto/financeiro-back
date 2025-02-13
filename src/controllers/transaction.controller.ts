@@ -41,6 +41,9 @@ export class TransactionController {
             category: true
           }
         }
+      },
+      orderBy: {
+        createdAt: "desc"
       }
     });
   

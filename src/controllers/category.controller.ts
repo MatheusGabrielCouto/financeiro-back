@@ -31,6 +31,9 @@ export class CategoryController {
       },
       omit: {
         userId: true
+      },
+      orderBy: {
+        createdAt: "desc"
       }
     })
 

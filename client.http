@@ -70,10 +70,10 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"message": "Cigam",
-	"value": 238.59,
+	"message": "Banco",
+	"value": 20.20,
 	"categories": ["fa917ff4-20ef-4022-8adc-6764bfcf28e6"],
-	"type": "CREDIT"
+	"type": "PAY"
 }
 
 ###
