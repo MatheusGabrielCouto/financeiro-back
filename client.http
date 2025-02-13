@@ -26,6 +26,14 @@ Content-Type: application/json
 
 ###
 
+#! Saldo
+
+# @name amount
+GET {{baseUrl}}/amount
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
 #! Categorias
 
 # @name list_categories

@@ -5,7 +5,7 @@ import { UserPayload } from "src/auth/jwt.strategy";
 import { PrismaService } from "src/prisma/prisma.service";
 
 @Controller('/amount')
-export class Ammount {
+export class Amount {
   constructor(
     private prisma: PrismaService
   ){}
