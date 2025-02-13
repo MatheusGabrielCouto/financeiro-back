@@ -18,7 +18,7 @@ model User {
   name String
   email String @unique
   password String
-  amount Int @default(0)
+  amount Float @default(0)
   createdAt DateTime @default(now()) @map("created_at")
 
   categories Category[]
@@ -43,7 +43,7 @@ model Category {
 
 model Transaction {
   id String @id @default(uuid())
-  value Int
+  value Float
   message String
 
   categories TransactionOnCategory[]
@@ -82,9 +82,9 @@ model Debt {
 
 model Installment {
   id String @id @default(uuid())
-  value Int
+  value Float
   status StatusInstallment
-  order Int
+  order Float
   createdAt DateTime @default(now()) @map("created_at")
   
   debtId String

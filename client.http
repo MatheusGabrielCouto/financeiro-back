@@ -1,4 +1,5 @@
-@baseUrl = https://financeiro-back.onrender.com
+# @baseUrl = https://financeiro-back.onrender.com
+@baseUrl = http://localhost:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -55,15 +56,15 @@ Authorization: Bearer {{authToken}}
 
 ###
 
-# @name create_category
+# @name create_transaction
 POST {{baseUrl}}/transaction
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"message": "boleto da gazin",
-	"value": 142,
-	"categories": ["1545b834-c3ca-41f6-adac-68129e2e4a9c"],
+	"message": "boleto da moto 2",
+	"value": 145.15,
+	"categories": ["18d74457-df3c-4b91-8fc4-6313fa6397ed"],
 	"type": "PAY"
 }
 
