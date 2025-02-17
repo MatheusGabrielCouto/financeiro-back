@@ -112,14 +112,28 @@ export class InstallmentController {
       throw new UnauthorizedException('Error')
     }
 
+    const findUser = await this.prisma.user.findUnique({
+      where: {
+         id: user.sub
+      }
+    })
+
+    if (!findUser) {
+      throw new NotFoundException('Usuário não encontrado!')
+    }
+
     if(!installment) {
       throw new NotFoundException('Parcela não encontrada!')
+    }
+
+    if (findUser.amount - installment.value < 0) {
+      throw new NotFoundException('Saldo em conta insuficiente')
     }
 
     await this.prisma.transaction.create({
       data: {
         message: debt.description,
-        type: 'DEBIT',
+        type: 'PAY',
         value: installment?.value,
       }
     })
@@ -130,6 +144,15 @@ export class InstallmentController {
         status: 'PAY'
       }
     })
+
+    await this.prisma.user.update({
+      where: {
+        id: user.sub
+      },
+      data: {
+        amount: findUser.amount - installment.value
+      }
+    });
   }
 
   @Post('')
