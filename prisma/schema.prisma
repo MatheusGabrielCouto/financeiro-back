@@ -85,8 +85,9 @@ model Installment {
   value Float
   status StatusInstallment
   order Float
+  dateTransaction DateTime
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   debtId String
   debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 

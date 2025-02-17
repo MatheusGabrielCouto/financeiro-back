@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -9,6 +9,7 @@ import { z } from "zod";
 const createInstallmentBodySchema = z.object({
   debtId: z.string().uuid(),
   value: z.number(),
+  date: z.string().transform((str) => new Date(str))
 })
 
 type CreateInstallmentBody = z.infer<typeof createInstallmentBodySchema>
@@ -17,6 +18,73 @@ const createInstallmentValidation = new ZodValidationPipe(createInstallmentBodyS
 @Controller('/installment')
 export class InstallmentController {
   constructor( private prisma: PrismaService ) {}
+
+
+  @Get('/')
+  @UseGuards(JwtAuthGuard)
+  async getInstallments(
+    @CurrentUser() user: UserPayload,
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    const monthNumber = parseInt(month, 10);
+    const yearNumber = parseInt(year, 10);
+
+    if (isNaN(monthNumber) || isNaN(yearNumber)) {
+      throw new Error('Mês e ano devem ser números válidos');
+    }
+
+    const installments = await this.prisma.installment.findMany({
+      where: {
+        debt: {
+          userId: user.sub,
+        },
+        dateTransaction: {
+          gte: new Date(yearNumber, monthNumber - 1, 1),
+          lt: new Date(yearNumber, monthNumber, 1),
+        },
+      },
+      include: {
+        debt: {
+          include: {
+            installments: true
+          }
+        },
+      },
+    });
+
+    // Obtem todas as `debtId` únicas para buscar a quantidade de parcelas de cada uma
+    const debtIds = [...new Set(installments.map((i) => i.debtId))];
+
+    const debtsWithInstallmentCount = await this.prisma.debt.findMany({
+      where: {
+        id: { in: debtIds },
+      },
+      select: {
+        id: true,
+        _count: {
+          select: { installments: true },
+        },
+      },
+    });
+
+    const installmentCountMap = debtsWithInstallmentCount.reduce((acc, debt) => {
+      acc[debt.id] = debt._count.installments;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const result = installments.map((installment) => ({
+      ...installment,
+      totalInstallments: installmentCountMap[installment.debtId] || 0,
+      debt: {
+        title: installment.debt.title,
+        description: installment.debt.description,
+        createdAt: installment.debt.createdAt,
+      },
+    }));
+
+    return result;
+  }
 
   @Patch('/:id')
   @UseGuards(JwtAuthGuard)
@@ -58,7 +126,7 @@ export class InstallmentController {
     @Body(createInstallmentValidation) body: CreateInstallmentBody,
     @CurrentUser() user: UserPayload
   ) {
-    const { debtId, value } = body
+    const { debtId, value, date } = body
 
     const debt = await this.prisma.debt.findUnique({ where: { id: debtId },
       include: {
@@ -75,7 +143,8 @@ export class InstallmentController {
         debtId,
         order: debt?.installments.length + 1,
         status: 'SCHEDULE',
-        value
+        value,
+        dateTransaction: new Date(date)
       }
     })
   }

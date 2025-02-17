@@ -19,9 +19,9 @@ POST {{baseUrl}}/accounts
 Content-Type: application/json
 
 {
-	"email": "admin1@admin.com",
-	"name": "Jon Doe 1",
-	"password": "123456"
+	"email": "matheus@admin.com",
+	"name": "Matheus Gabriel",
+	"password": "Fazendeiro1!"
 }
 
 ###
@@ -98,15 +98,8 @@ Authorization: Bearer {{authToken}}
 	"instalments": [
 		{
 			"value": 100,
-			"status": "SCHEDULE"
-		},
-		{
-			"value": 100,
-			"status": "SCHEDULE"
-		},
-		{
-			"value": 50,
-			"status": "SCHEDULE"
+			"status": "SCHEDULE",
+			"date": "2025-01-15"
 		}
 	]
 }
@@ -122,6 +115,13 @@ Authorization: Bearer {{authToken}}
 
 #! Installment
 
+# @name list_installment
+GET {{baseUrl}}/installment?month=2&year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
 # @name pay_installment
 PATCH {{baseUrl}}/installment/56f36178-8e09-4bbf-8e09-ede6f61b3762
 Content-Type: application/json
@@ -136,7 +136,8 @@ Authorization: Bearer {{authToken}}
 
 {
 	"value": 99,
-	"debtId": "f5af80ca-e1b7-4fc7-a0a0-fbd5c58b682f"
+	"debtId": "781de4a3-f464-467f-acfa-a075c4d26926",
+	"date": "2025-02-15"
 }
 
 ###

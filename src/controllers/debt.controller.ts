@@ -11,7 +11,8 @@ const createDebtBodySchema = z.object({
   description: z.string().nullable(),
   instalments: z.array(z.object({
     value: z.number(),
-    status: z.enum(['PAY', 'SCHEDULE'])
+    status: z.enum(['PAY', 'SCHEDULE']),
+    date: z.string().transform((str) => new Date(str))
   }))
 })
 
@@ -62,7 +63,8 @@ constructor(
           create: instalments.map((instalment, index) => ({
             value: instalment.value,
             status: instalment.status,
-            order: index + 1
+            order: index + 1,
+            dateTransaction: new Date(instalment.date)
           }))
         }
       }
