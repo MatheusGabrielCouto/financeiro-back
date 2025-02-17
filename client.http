@@ -72,7 +72,6 @@ Authorization: Bearer {{authToken}}
 {
 	"message": "Banco",
 	"value": 20.20,
-	"categories": ["fa917ff4-20ef-4022-8adc-6764bfcf28e6"],
 	"type": "PAY"
 }
 
@@ -80,8 +79,15 @@ Authorization: Bearer {{authToken}}
 
 #! Debt
 
-# @name list_debt
+# @name list_debts
 GET {{baseUrl}}/debt
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name list_debt
+GET {{baseUrl}}/debt/9a5818c0-7d87-4258-82e5-3524ed210091
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
@@ -93,8 +99,8 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"title": "Gazin",
-	"description": "pagamento da gazin",
+	"title": "Gazin 2",
+	"description": "pagamento da gazin 2",
 	"instalments": [
 		{
 			"value": 100,
@@ -123,7 +129,7 @@ Authorization: Bearer {{authToken}}
 ###
 
 # @name pay_installment
-PATCH {{baseUrl}}/installment/56f36178-8e09-4bbf-8e09-ede6f61b3762
+PATCH {{baseUrl}}/installment/329ac95a-e6e4-485f-a344-2481575a4f6c
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
@@ -137,7 +143,7 @@ Authorization: Bearer {{authToken}}
 {
 	"value": 99,
 	"debtId": "781de4a3-f464-467f-acfa-a075c4d26926",
-	"date": "2025-02-15"
+	"date": "2025-03-18"
 }
 
 ###

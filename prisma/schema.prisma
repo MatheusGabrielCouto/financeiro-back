@@ -23,6 +23,7 @@ model User {
 
   categories Category[]
   debts Debt[]
+  transactions Transaction[]
 
   @@map("users")
 }
@@ -45,6 +46,9 @@ model Transaction {
   id String @id @default(uuid())
   value Float
   message String
+
+  userId String
+  user User @relation(fields: [userId], references: [id])
 
   categories TransactionOnCategory[]
   type TypeTransaction

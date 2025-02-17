@@ -10,7 +10,7 @@ const createTransactionBodySchema = z.object({
   message: z.string(),
   value: z.number(),
   type: z.enum(['DEBIT', 'CREDIT', 'PAY']),
-  categories: z.array(z.string().uuid().nonempty('Pelo menos uma categoria deve ser informada'))
+  categories: z.array(z.string().uuid()).optional()
 })
 
 type CreateTransactionBody = z.infer<typeof createTransactionBodySchema>
@@ -27,13 +27,7 @@ export class TransactionController {
   ) {
     const transactions = await this.prisma.transaction.findMany({
       where: {
-        categories: {
-          some: {
-            category: {
-              userId: user.sub
-            }
-          }
-        }
+        userId: user.sub
       },
       include: {
         categories: {
@@ -63,17 +57,6 @@ export class TransactionController {
   ) {
     const { message, type, value, categories } = body
 
-    const existingCategories = await this.prisma.category.findMany({
-      where: { id: { in: categories } },
-      select: { id: true },
-    });
-
-    const existingCategoryIds = existingCategories.map(cat => cat.id);
-
-    if (existingCategoryIds.length !== categories.length) {
-      throw new NotFoundException('Uma ou mais categorias não existem');
-    }
-
     const findUser = await this.prisma.user.findUnique({
       where: {
         id: user.sub
@@ -84,43 +67,58 @@ export class TransactionController {
       throw new NotFoundException('Usuário não encontrado!')
     }
 
-    if(type === 'PAY') {
-      if(findUser.amount - value < 0) {
-        throw new NotFoundException('Saldo em conta insuficiente')
-      }
+    if (type === 'PAY' && findUser.amount - value < 0) {
+      throw new NotFoundException('Saldo em conta insuficiente')
     }
 
-    // 2️⃣ Criar a transação primeiro
+    // 1️⃣ Criar a transação primeiro
     const transaction = await this.prisma.transaction.create({
       data: {
         value,
         message,
         type,
+        userId: user.sub
       },
     });
 
+    // 2️⃣ Atualizar o saldo do usuário
     await this.prisma.user.update({
       where: {
         id: user.sub
       },
       data: {
-        amount: type === 'PAY' || type === 'DEBIT' ? findUser?.amount - value : findUser?.amount + value
+        amount: type === 'PAY' || type === 'DEBIT'
+          ? findUser.amount - value
+          : findUser.amount + value
       }
-    })
-
-    // 3️⃣ Associar as categorias depois
-    await this.prisma.transactionOnCategory.createMany({
-      data: existingCategoryIds.map(categoryId => ({
-        transactionId: transaction.id,
-        categoryId,
-      })),
     });
+
+    // 3️⃣ Vincular categorias se fornecidas
+    if (categories && categories.length > 0) {
+      const existingCategories = await this.prisma.category.findMany({
+        where: { id: { in: categories } },
+        select: { id: true },
+      });
+
+      const existingCategoryIds = existingCategories.map(cat => cat.id);
+
+      if (existingCategoryIds.length !== categories.length) {
+        throw new NotFoundException('Uma ou mais categorias não existem');
+      }
+
+      await this.prisma.transactionOnCategory.createMany({
+        data: existingCategoryIds.map(categoryId => ({
+          transactionId: transaction.id,
+          categoryId,
+        })),
+      });
+    }
 
     // 4️⃣ Retornar a transação com as categorias associadas
     return this.prisma.transaction.findUnique({
       where: { id: transaction.id },
-      include: { categories: true },
+      include: { categories: { include: { category: true } } },
     });
-
   }
+
 }

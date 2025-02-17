@@ -112,6 +112,18 @@ export class InstallmentController {
       throw new UnauthorizedException('Error')
     }
 
+    if(!installment) {
+      throw new NotFoundException('Parcela não encontrada!')
+    }
+
+    await this.prisma.transaction.create({
+      data: {
+        message: debt.description,
+        type: 'DEBIT',
+        value: installment?.value,
+      }
+    })
+
     await this.prisma.installment.update({
       where: {id},
       data: {

@@ -46,6 +46,29 @@ constructor(
     return debts
   }
 
+  @Get('/:id')
+  @UseGuards(JwtAuthGuard)
+  async find(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string
+  ) {
+    
+    const debts = this.prisma.debt.findUnique({
+      where: {
+        id        
+      },
+      include: {
+        installments: {
+          orderBy: {
+            order: "asc"
+          }
+        }
+      }
+    })
+
+    return debts
+  }
+
   @Post('')
   @UseGuards(JwtAuthGuard)
   async create(
