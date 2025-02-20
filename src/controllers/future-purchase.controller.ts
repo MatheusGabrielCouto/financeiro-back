@@ -127,7 +127,7 @@ export class FuturePurchaseController {
      ? '/var/data' // Diretório persistente do Render
      : join(process.cwd()); // Para desenvolvimento local
     const filePath = join(uploadsDir, futurePurchase.image);
-
+    console.log(process.cwd())
     try {
       unlinkSync(filePath); // Deleta o arquivo fisicamente
       console.log('Arquivo deletado:', filePath);
