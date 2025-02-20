@@ -8,8 +8,8 @@ POST {{baseUrl}}/sessions
 Content-Type: application/json
 
 {
-	"email": "admin@admin.com",
-	"password": "admin"
+	"email": "matheus@admin.com",
+	"password": "Fazendeiro1!"
 }
 
 ###
@@ -105,7 +105,7 @@ Authorization: Bearer {{authToken}}
 		{
 			"value": 100,
 			"status": "SCHEDULE",
-			"date": "2025-01-15"
+			"date": "2025-20-20"
 		}
 	]
 }
@@ -142,8 +142,8 @@ Authorization: Bearer {{authToken}}
 
 {
 	"value": 99,
-	"debtId": "781de4a3-f464-467f-acfa-a075c4d26926",
-	"date": "2025-03-18"
+	"debtId": "f588a152-28b8-48a2-a0a3-e925484d32e1",
+	"date": "2025-02-20"
 }
 
 ###

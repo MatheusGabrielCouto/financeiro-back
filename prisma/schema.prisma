@@ -24,13 +24,13 @@ model User {
   categories Category[]
   debts Debt[]
   transactions Transaction[]
-
+  futurePurchases FuturePurchase[]
   @@map("users")
 }
 
 model Category {
   id String @id @default(uuid())
-  title String @unique
+  title String
   description String
 
   userId String
@@ -96,6 +96,21 @@ model Installment {
   debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
   @@map("installments")
+}
+
+model FuturePurchase {
+  id String @id @default(uuid())
+  name String
+  value Float
+  valueAdded Float @map("value_added")
+  dateAcquisition DateTime @map("date_acquisition")
+  createdAt DateTime @default(now()) @map("created_at")
+  image String
+
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("future_purchases")
 }
 
 enum TypeTransaction {

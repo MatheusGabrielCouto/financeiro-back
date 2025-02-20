@@ -135,6 +135,7 @@ export class InstallmentController {
         message: debt.description,
         type: 'PAY',
         value: installment?.value,
+        userId: user.sub
       }
     })
 

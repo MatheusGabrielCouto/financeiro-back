@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -24,10 +24,19 @@ export class TransactionController {
   @UseGuards(JwtAuthGuard)
   async list(
     @CurrentUser() user: UserPayload,
+    @Query('month') month: string,
+    @Query('year') year: string,
   ) {
+    const monthNumber = month ? parseInt(month, 10) : Number((new Date().getMonth() + 1).toString().padStart(2, '0'));
+    const yearNumber = year ? parseInt(year, 10) : Number(new Date().getFullYear());
+    
     const transactions = await this.prisma.transaction.findMany({
       where: {
-        userId: user.sub
+        userId: user.sub,
+        createdAt: {
+          gte: new Date(yearNumber, monthNumber - 1, 1),
+          lt: new Date(yearNumber, monthNumber, 1)
+        }
       },
       include: {
         categories: {

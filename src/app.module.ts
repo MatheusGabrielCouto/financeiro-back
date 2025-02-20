@@ -10,6 +10,7 @@ import { TransactionController } from './controllers/transaction.controller';
 import { DebtController } from './controllers/debt.controller';
 import { InstallmentController } from './controllers/installment.controller';
 import { Amount } from './controllers/amount.controller';
+import { FuturePurchaseController } from './controllers/future-purchase.controller';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { Amount } from './controllers/amount.controller';
     TransactionController,
     DebtController,
     InstallmentController,
-    Amount
+    Amount,
+    FuturePurchaseController
   ],
   providers: [],
 })
