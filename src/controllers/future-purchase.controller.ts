@@ -124,7 +124,7 @@ export class FuturePurchaseController {
 
      // 3️⃣ Deletar o arquivo da pasta de uploads
      const uploadsDir = process.env.NODE_ENV === 'production' 
-     ? '/mnt/data' // Diretório persistente do Render
+     ? '/var/data' // Diretório persistente do Render
      : join(process.cwd()); // Para desenvolvimento local
     const filePath = join(uploadsDir, futurePurchase.image);
 
