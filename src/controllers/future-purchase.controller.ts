@@ -50,15 +50,7 @@ export class FuturePurchaseController {
       orderBy: { dateAcquisition: 'asc' },
     });
 
-    // Mapeia para adicionar a URL completa da imagem
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    console.log(baseUrl)
-    const purchasesWithImageUrl = purchases.map((purchase) => ({
-      ...purchase,
-      imageUrl: purchase.image ? `${baseUrl}${purchase.image}` : '',
-    }));
-
-    return purchasesWithImageUrl;
+    return purchases;
   }
 
   @Post()
