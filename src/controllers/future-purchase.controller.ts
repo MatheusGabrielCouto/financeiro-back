@@ -8,10 +8,12 @@ import {
   NotFoundException,
   Get,
   Req,
+  Param,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { CurrentUser } from 'src/auth/current-user-decorator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserPayload } from 'src/auth/jwt.strategy';
@@ -19,6 +21,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ZodValidationPipe } from 'src/pipes/zod-validation-pipe';
 import { z } from 'zod';
 import { Request } from 'express';
+import { unlinkSync } from 'fs';
 
 const createFuturePurchaseBodySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -98,4 +101,45 @@ export class FuturePurchaseController {
 
     return futurePurchase;
   }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async delete(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string
+  ) {
+    // 1️⃣ Encontre o FuturePurchase no banco
+    const futurePurchase = await this.prisma.futurePurchase.findUnique({
+      where: { id },
+    });
+
+    if (!futurePurchase) {
+      throw new NotFoundException('Future purchase não encontrado');
+    }
+
+    // 2️⃣ Verifique se o usuário é o proprietário da compra futura
+    if (futurePurchase.userId !== user.sub) {
+      throw new NotFoundException('Você não tem permissão para excluir este registro');
+    }
+
+    // 3️⃣ Deletar o arquivo da pasta de uploads
+    const uploadsDir = join(process.cwd()); // Usa process.cwd() para pegar o diretório raiz
+    const filePath = join(uploadsDir, futurePurchase.image);
+
+    try {
+      unlinkSync(filePath); // Deleta o arquivo fisicamente
+      console.log('Arquivo deletado:', filePath);
+    } catch (err) {
+      console.error('Erro ao deletar o arquivo:', err);
+      throw new Error('Erro ao tentar deletar o arquivo');
+    }
+
+    // 4️⃣ Deletar o registro do banco
+    await this.prisma.futurePurchase.delete({
+      where: { id },
+    });
+
+    return { message: 'Compra futura e arquivo excluídos com sucesso' };
+  }
+
 }
