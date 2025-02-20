@@ -11,6 +11,7 @@ import { DebtController } from './controllers/debt.controller';
 import { InstallmentController } from './controllers/installment.controller';
 import { Amount } from './controllers/amount.controller';
 import { FuturePurchaseController } from './controllers/future-purchase.controller';
+import { CloudinaryModule } from './modules/cloudinary.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FuturePurchaseController } from './controllers/future-purchase.controll
     }),
     AuthModule,
     PrismaModule,
+    CloudinaryModule
   ],
   controllers: [
     CreateAccountControleler,

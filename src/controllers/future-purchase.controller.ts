@@ -22,6 +22,7 @@ import { ZodValidationPipe } from 'src/pipes/zod-validation-pipe';
 import { z } from 'zod';
 import { Request } from 'express';
 import { unlinkSync } from 'fs';
+import { CloudinaryService } from 'src/services/cloudinary.service';
 
 const createFuturePurchaseBodySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -36,7 +37,10 @@ const validationPipeCreateFuturePurchase = new ZodValidationPipe(createFuturePur
 
 @Controller('/future-purchase')
 export class FuturePurchaseController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -51,7 +55,7 @@ export class FuturePurchaseController {
     console.log(baseUrl)
     const purchasesWithImageUrl = purchases.map((purchase) => ({
       ...purchase,
-      imageUrl: purchase.image ? `${baseUrl}${purchase.image}` : null,
+      imageUrl: purchase.image ? `${baseUrl}${purchase.image}` : '',
     }));
 
     return purchasesWithImageUrl;
@@ -59,43 +63,27 @@ export class FuturePurchaseController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          callback(null, `${uniqueSuffix}${ext}`);
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FileInterceptor('image'))
   async create(
     @CurrentUser() user: UserPayload,
-    @UploadedFile() file: Express.Multer.File,
     @Body(validationPipeCreateFuturePurchase) body: CreateFuturePurchaseBody,
+    @UploadedFile() image: Express.Multer.File,
   ) {
-    const { name, value, valueAdded, dateAcquisition } = body;
+    const { name, value, dateAcquisition } = body;
 
-    const findUser = await this.prisma.user.findUnique({
-      where: { id: user.sub },
-    });
-
-    if (!findUser) {
-      throw new NotFoundException('Usuário não encontrado!');
+    let imageUrl: string = '';
+    if (image) {
+      imageUrl = await this.cloudinaryService.uploadImage(image);
     }
-
-    const imageUrl = file ? `/uploads/${file.filename}` : '';
 
     const futurePurchase = await this.prisma.futurePurchase.create({
       data: {
         name,
         value: Number(value),
-        valueAdded: valueAdded || 0,
         dateAcquisition: new Date(dateAcquisition),
         image: imageUrl,
         userId: user.sub,
+        valueAdded: 0,
       },
     });
 
@@ -104,44 +92,30 @@ export class FuturePurchaseController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  async delete(
-    @CurrentUser() user: UserPayload,
-    @Param('id') id: string
-  ) {
-    // 1️⃣ Encontre o FuturePurchase no banco
-    const futurePurchase = await this.prisma.futurePurchase.findUnique({
-      where: { id },
-    });
+  async delete(@Param('id') id: string) {
+    const futurePurchase = await this.prisma.futurePurchase.findUnique({ where: { id } });
 
     if (!futurePurchase) {
-      throw new NotFoundException('Future purchase não encontrado');
+      throw new Error('Future Purchase not found');
     }
 
-    // 2️⃣ Verifique se o usuário é o proprietário da compra futura
-    if (futurePurchase.userId !== user.sub) {
-      throw new NotFoundException('Você não tem permissão para excluir este registro');
+    // Deleta imagem do Cloudinary (extrai publicId da URL)
+    if (futurePurchase.image) {
+      const publicId = this.extractPublicId(futurePurchase.image);
+      console.log(publicId)
+      await this.cloudinaryService.deleteImage(publicId);
     }
 
-     // 3️⃣ Deletar o arquivo da pasta de uploads
-     const uploadsDir = process.env.NODE_ENV === 'production' 
-     ? '/var/data' // Diretório persistente do Render
-     : join(process.cwd()); // Para desenvolvimento local
-    const filePath = join(uploadsDir, futurePurchase.image);
-    console.log(process.cwd())
-    try {
-      unlinkSync(filePath); // Deleta o arquivo fisicamente
-      console.log('Arquivo deletado:', filePath);
-    } catch (err) {
-      console.error('Erro ao deletar o arquivo:', err);
-      throw new Error('Erro ao tentar deletar o arquivo');
-    }
+    await this.prisma.futurePurchase.delete({ where: { id } });
 
-    // 4️⃣ Deletar o registro do banco
-    await this.prisma.futurePurchase.delete({
-      where: { id },
-    });
+    return { message: 'Future purchase deleted successfully' };
+  }
 
-    return { message: 'Compra futura e arquivo excluídos com sucesso' };
+  private extractPublicId(url: string): string {
+    const parts = url.split('/');
+    const filenameWithExtension = parts[parts.length - 1];
+    const [filename] = filenameWithExtension.split('.');
+    return `future-purchases/${filename}`; // Mesma pasta usada no upload
   }
 
 }
