@@ -122,8 +122,10 @@ export class FuturePurchaseController {
       throw new NotFoundException('Você não tem permissão para excluir este registro');
     }
 
-    // 3️⃣ Deletar o arquivo da pasta de uploads
-    const uploadsDir = join(process.cwd()); // Usa process.cwd() para pegar o diretório raiz
+     // 3️⃣ Deletar o arquivo da pasta de uploads
+     const uploadsDir = process.env.NODE_ENV === 'production' 
+     ? '/mnt/data/uploads' // Diretório persistente do Render
+     : join(process.cwd()); // Para desenvolvimento local
     const filePath = join(uploadsDir, futurePurchase.image);
 
     try {
