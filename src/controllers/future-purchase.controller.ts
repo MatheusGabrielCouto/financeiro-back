@@ -68,7 +68,7 @@ export class FuturePurchaseController {
       imageUrl = await this.cloudinaryService.uploadImage(image);
     }
 
-    const futurePurchase = await this.prisma.futurePurchase.create({
+    await this.prisma.futurePurchase.create({
       data: {
         name,
         value: Number(value),
@@ -79,7 +79,6 @@ export class FuturePurchaseController {
       },
     });
 
-    return futurePurchase;
   }
 
   @Delete(':id')
@@ -94,7 +93,7 @@ export class FuturePurchaseController {
     // Deleta imagem do Cloudinary (extrai publicId da URL)
     if (futurePurchase.image) {
       const publicId = this.extractPublicId(futurePurchase.image);
-      console.log(publicId)
+      
       await this.cloudinaryService.deleteImage(publicId);
     }
 

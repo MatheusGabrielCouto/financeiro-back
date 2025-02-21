@@ -48,8 +48,6 @@ export class CategoryController {
   ) {
     const { description, title } = body
 
-    console.log(description, title)
-
     await this.prisma.category.create({
       data: {
         title,
