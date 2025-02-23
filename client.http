@@ -8,8 +8,8 @@ POST {{baseUrl}}/sessions
 Content-Type: application/json
 
 {
-	"email": "matheus@admin.com",
-	"password": "Fazendeiro1!"
+	"email": "admin@admin.com",
+	"password": "admin"
 }
 
 ###
@@ -19,7 +19,7 @@ POST {{baseUrl}}/accounts
 Content-Type: application/json
 
 {
-	"email": "matheus@admin.com",
+	"email": "sarah@admin.com",
 	"name": "Matheus Gabriel",
 	"password": "Fazendeiro1!"
 }
@@ -87,7 +87,7 @@ Authorization: Bearer {{authToken}}
 ###
 
 # @name list_debt
-GET {{baseUrl}}/debt/9a5818c0-7d87-4258-82e5-3524ed210091
+GET {{baseUrl}}/debt/9821854d-9b12-4a5e-9522-a9cc8e0bc159
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
@@ -108,6 +108,22 @@ Authorization: Bearer {{authToken}}
 			"date": "2025-20-20"
 		}
 	]
+}
+
+###
+
+# @name create_debt_recurrence
+POST {{baseUrl}}/debt/recurrence
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Gazin 2",
+	"description": "pagamento da gazin 2",
+	"value": 100,
+	"installmentsCount": 10,
+	"dayOfMonth": "15",
+	"recurrence": "MONTHLY"
 }
 
 ###

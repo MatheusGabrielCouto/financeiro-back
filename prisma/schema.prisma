@@ -75,6 +75,8 @@ model Debt {
   title String
   description String
 
+  recurrence RecurrenceType @default(MONTHLY)
+
   userId String
   user User @relation(fields: [userId], references: [id])
 
@@ -122,4 +124,11 @@ enum TypeTransaction {
 enum StatusInstallment {
   PAY
   SCHEDULE
+}
+
+enum RecurrenceType {
+  MONTHLY
+  WEEKLY
+  DAILY
+  YEARLY
 }
