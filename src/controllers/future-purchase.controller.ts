@@ -64,6 +64,7 @@ export class FuturePurchaseController {
     const { name, value, dateAcquisition } = body;
 
     let imageUrl: string = '';
+    console.log(image)
     if (image) {
       imageUrl = await this.cloudinaryService.uploadImage(image);
     }

@@ -9,7 +9,7 @@ import { z } from "zod";
 const createDebtBodySchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
-  instalments: z.array(z.object({
+  installments: z.array(z.object({
     value: z.number(),
     status: z.enum(['PAY', 'SCHEDULE']),
     date: z.string().transform((str) => new Date(str))
@@ -75,7 +75,7 @@ constructor(
     @CurrentUser() user: UserPayload,
     @Body(createDebtBodyPipe) body: CreateDebtBody
   ) {
-    const { description, title, instalments } = body
+    const { description, title, installments } = body
 
     await this.prisma.debt.create({
       data: {
@@ -83,7 +83,7 @@ constructor(
         description: description || '',
         userId: user.sub,
         installments: {
-          create: instalments.map((instalment, index) => ({
+          create: installments.map((instalment, index) => ({
             value: instalment.value,
             status: instalment.status,
             order: index + 1,

@@ -101,7 +101,7 @@ Authorization: Bearer {{authToken}}
 {
 	"title": "Gazin 2",
 	"description": "pagamento da gazin 2",
-	"instalments": [
+	"installments": [
 		{
 			"value": 100,
 			"status": "SCHEDULE",
