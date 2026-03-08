@@ -22,7 +22,7 @@ export class DetailsController {
     const startOfMonth = new Date(yearNumber, monthNumber - 1, 1);
     const endOfMonth = new Date(yearNumber, monthNumber, 0, 23, 59, 59);
 
-    const [recurringIncomes, recurringPayments, installments, transactions, debts] =
+    const [recurringIncomes, recurringPayments, installments, transactions, debts, caixinhaTransactions, caixinhaTotal] =
       await Promise.all([
         this.prisma.recurringIncome.findMany({
           where: { userId: user.sub }
@@ -56,6 +56,20 @@ export class DetailsController {
               orderBy: { dateTransaction: "asc" }
             }
           }
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+            OR: [
+              { type: "DEBIT", message: { startsWith: "Depósito na caixinha" } },
+              { type: "CREDIT", message: { startsWith: "Retirada da caixinha" } }
+            ]
+          }
+        }),
+        this.prisma.futurePurchase.aggregate({
+          where: { userId: user.sub },
+          _sum: { valueAdded: true }
         })
       ]);
 
@@ -102,6 +116,24 @@ export class DetailsController {
       date: inst.dateTransaction
     }));
 
+    const caixinhaDeposits = caixinhaTransactions
+      .filter((t) => t.type === "DEBIT")
+      .reduce((sum, t) => sum + t.value, 0);
+
+    const caixinhaWithdrawals = caixinhaTransactions
+      .filter((t) => t.type === "CREDIT")
+      .reduce((sum, t) => sum + t.value, 0);
+
+    const caixinhaNetInMonth = caixinhaDeposits - caixinhaWithdrawals;
+
+    const caixinhaBreakdown = caixinhaTransactions.map((t) => ({
+      id: t.id,
+      type: t.type === "DEBIT" ? "deposit" : "withdrawal",
+      value: t.value,
+      message: t.message,
+      createdAt: t.createdAt
+    }));
+
     return {
       period: {
         month: monthNumber,
@@ -112,6 +144,10 @@ export class DetailsController {
         recurringIncome: recurringIncomeTotal,
         recurringPayments: recurringPaymentsTotal,
         debts: debtsOfMonth,
+        caixinhaDeposits,
+        caixinhaWithdrawals,
+        caixinhaNetInMonth,
+        caixinhaTotal: caixinhaTotal._sum.valueAdded ?? 0,
         netExpected:
           recurringIncomeTotal - recurringPaymentsTotal - debtsOfMonth,
         totalExpenses,
@@ -125,7 +161,8 @@ export class DetailsController {
       recurringPaymentsBreakdown,
       debtsBreakdown,
       expensesByCategory,
-      debtProjections
+      debtProjections,
+      caixinhaBreakdown
     };
   }
 

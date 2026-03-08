@@ -8,14 +8,12 @@ API REST para controle financeiro pessoal, desenvolvida com NestJS, Prisma e Pos
 - **Prisma** - ORM para PostgreSQL
 - **Zod** - Validação de schemas
 - **JWT** - Autenticação
-- **Cloudinary** - Armazenamento de imagens
 - **bcryptjs** - Hash de senhas
 
 ## Pré-requisitos
 
 - Node.js 18+
 - PostgreSQL
-- Conta no Cloudinary (para compras futuras)
 
 ## Configuração
 
@@ -32,10 +30,6 @@ DATABASE_URL="postgresql://user:password@localhost:5432/financial"
 PORT=3333
 JWT_PRIVATE_KEY="sua-chave-privada"
 JWT_PUBLIC_KEY="sua-chave-publica"
-CLOUDINARY_CLOUD_NAME="seu-cloud-name"
-CLOUDINARY_API_KEY="sua-api-key"
-CLOUDINARY_API_SECRET="seu-api-secret"
-CLOUDINARY_URL="sua-url-cloudinary"
 ```
 
 3. Execute as migrations e o seed:
@@ -173,15 +167,20 @@ Dívidas com parcelas definidas (financiamentos, empréstimos).
 
 ### Compras Futuras
 
-Lista de desejos com valor e data prevista de aquisição. Suporta upload de imagem (Cloudinary).
+Lista de desejos com valor e data prevista de aquisição.
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/future-purchase` | Listar compras futuras |
-| POST | `/future-purchase` | Criar compra futura (multipart/form-data com `image`) |
-| DELETE | `/future-purchase/:id` | Deletar compra futura |
+| GET | `/future-purchase/:id` | Buscar compra futura |
+| POST | `/future-purchase` | Criar compra futura |
+| PATCH | `/future-purchase/:id/add-value` | Adicionar valor à caixinha (debita do saldo) |
+| PATCH | `/future-purchase/:id/remove-value` | Remover valor da caixinha (credita no saldo) |
+| DELETE | `/future-purchase/:id` | Deletar compra futura (apenas se valueAdded = 0) |
 
 **Body criar:** `{ "name": "string", "value": number, "valueAdded": number?, "dateAcquisition": "YYYY-MM-DD" }`
+
+**Body add-value / remove-value:** `{ "value": number }`
 
 ---
 

@@ -14,8 +14,6 @@ import { FuturePurchaseController } from './controllers/future-purchase.controll
 import { RecurringIncomeController } from './controllers/recurring-income.controller';
 import { DetailsController } from './controllers/details.controller';
 import { RecurringPaymentController } from './controllers/recurring-payment.controller';
-import { CloudinaryModule } from './modules/cloudinary.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,7 +22,6 @@ import { CloudinaryModule } from './modules/cloudinary.module';
     }),
     AuthModule,
     PrismaModule,
-    CloudinaryModule
   ],
   controllers: [
     CreateAccountControleler,

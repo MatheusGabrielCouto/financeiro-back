@@ -136,7 +136,7 @@ model FuturePurchase {
   valueAdded      Float    @map("value_added")
   dateAcquisition DateTime @map("date_acquisition")
   createdAt       DateTime @default(now()) @map("created_at")
-  image           String
+  image           String?
 
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id])

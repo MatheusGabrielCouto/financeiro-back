@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
-import { StatusInstallment } from "@prisma/client";
+import { RecurrenceType, StatusInstallment } from "@prisma/client";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -20,10 +20,23 @@ const createDebtBodySchema = z.object({
 const createDebtBodyRecurrenceSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
-  value: z.number(), // Valor total do débito
-  installmentsCount: z.number().min(1), // Número de parcelas
-  recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']), // Tipo de recorrência
-  dayOfMonth: z.string()
+  value: z.number(),
+  installmentsCount: z.number().min(1),
+  recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
+  dayOfMonth: z.string().optional(),
+  dayOfWeek: z.number().min(0).max(6).optional(),
+  month: z.number().min(1).max(12).optional(),
+}).superRefine((data, ctx) => {
+  if (data.recurrence === 'MONTHLY' && !data.dayOfMonth) {
+    ctx.addIssue({ code: 'custom', message: 'dayOfMonth é obrigatório para recorrência mensal', path: ['dayOfMonth'] });
+  }
+  if (data.recurrence === 'WEEKLY' && data.dayOfWeek === undefined) {
+    ctx.addIssue({ code: 'custom', message: 'dayOfWeek é obrigatório para recorrência semanal (0=Dom, 6=Sab)', path: ['dayOfWeek'] });
+  }
+  if (data.recurrence === 'YEARLY' && (!data.dayOfMonth || !data.month)) {
+    if (!data.dayOfMonth) ctx.addIssue({ code: 'custom', message: 'dayOfMonth é obrigatório para recorrência anual', path: ['dayOfMonth'] });
+    if (!data.month) ctx.addIssue({ code: 'custom', message: 'month é obrigatório para recorrência anual (1-12)', path: ['month'] });
+  }
 });
 
 type CreateDebtRecurrenceBody = z.infer<typeof createDebtBodyRecurrenceSchema>;
@@ -88,32 +101,89 @@ async createRecurrence(
   @CurrentUser() user: UserPayload,
   @Body(createDebtRecurrenceBodyPipe) body: CreateDebtRecurrenceBody
 ) {
-  const { title, description, value, installmentsCount, recurrence, dayOfMonth } = body;
+  const { title, description, value, installmentsCount, recurrence, dayOfMonth, dayOfWeek, month } = body;
 
   const now = new Date();
-  const firstDayOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  now.setHours(0, 0, 0, 0);
 
-  const startDate = now < firstDayOfNextMonth
-    ? new Date(now.getFullYear(), now.getMonth(), 1)
-    : firstDayOfNextMonth;
+  const getNextDate = (): Date => {
+    switch (recurrence) {
+      case 'DAILY': {
+        return new Date(now);
+      }
+      case 'WEEKLY': {
+        const target = new Date(now);
+        const currentDay = target.getDay();
+        let daysUntil = (dayOfWeek! - currentDay + 7) % 7;
+        if (daysUntil === 0) daysUntil = 7;
+        target.setDate(target.getDate() + daysUntil);
+        return target;
+      }
+      case 'MONTHLY': {
+        let date = new Date(now.getFullYear(), now.getMonth(), Number(dayOfMonth!));
+        if (date.getDate() !== Number(dayOfMonth!)) {
+          date = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+        if (date <= now) {
+          date = new Date(now.getFullYear(), now.getMonth() + 1, Number(dayOfMonth!));
+          if (date.getDate() !== Number(dayOfMonth!)) {
+            date = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+          }
+        }
+        return date;
+      }
+      case 'YEARLY': {
+        let date = new Date(now.getFullYear(), month! - 1, Number(dayOfMonth!));
+        if (date.getDate() !== Number(dayOfMonth!)) {
+          date = new Date(now.getFullYear(), month!, 0);
+        }
+        if (date <= now) {
+          date = new Date(now.getFullYear() + 1, month! - 1, Number(dayOfMonth!));
+          if (date.getDate() !== Number(dayOfMonth!)) {
+            date = new Date(now.getFullYear() + 1, month!, 0);
+          }
+        }
+        return date;
+      }
+    }
+  };
 
-  // Criando as parcelas automaticamente
+  const startDate = getNextDate();
+
   const installments = Array.from({ length: installmentsCount }, (_, i) => {
-    const date = new Date(startDate); // Data inicial do próximo mês
-    date.setMonth(date.getMonth() + i); // Adiciona o número correto de meses
-    date.setDate(Number(dayOfMonth)); // Define o dia fixo do mês
+    const date = new Date(startDate);
 
-    // Se o dia do mês for maior que o número de dias no mês, ajusta para o último dia
-    if (date.getDate() !== Number(dayOfMonth)) {
-      date.setMonth(date.getMonth() + 1);
-      date.setDate(0); // Último dia do mês
+    switch (recurrence) {
+      case 'DAILY':
+        date.setDate(date.getDate() + i);
+        break;
+      case 'WEEKLY':
+        date.setDate(date.getDate() + i * 7);
+        break;
+      case 'MONTHLY':
+        date.setMonth(date.getMonth() + i);
+        date.setDate(Number(dayOfMonth!));
+        if (date.getDate() !== Number(dayOfMonth!)) {
+          date.setMonth(date.getMonth() + 1);
+          date.setDate(0);
+        }
+        break;
+      case 'YEARLY':
+        date.setFullYear(date.getFullYear() + i);
+        date.setMonth(month! - 1);
+        date.setDate(Number(dayOfMonth!));
+        if (date.getDate() !== Number(dayOfMonth!)) {
+          date.setMonth(month!);
+          date.setDate(0);
+        }
+        break;
     }
 
     return {
-      value: value,
-      status: StatusInstallment.SCHEDULE, // Enum correto
+      value,
+      status: StatusInstallment.SCHEDULE,
       order: i + 1,
-      dateTransaction: date, // Data ajustada
+      dateTransaction: date,
     };
   });
 
@@ -122,7 +192,7 @@ async createRecurrence(
       title,
       description: description || '',
       userId: user.sub,
-      recurrence,
+      recurrence: recurrence as RecurrenceType,
       installments: {
         create: installments,
       },

@@ -1,5 +1,5 @@
-# @baseUrl = https://financeiro-back.onrender.com
-@baseUrl = http://192.168.1.106:3333
+@baseUrl = https://financeiro-back.onrender.com
+# @baseUrl = http://192.168.1.106:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -19,9 +19,9 @@ POST {{baseUrl}}/accounts
 Content-Type: application/json
 
 {
-	"email": "sarah@admin.com",
+	"email": "admin@admin.com",
 	"name": "Matheus Gabriel",
-	"password": "Fazendeiro1!"
+	"password": "admin"
 }
 
 ###
@@ -255,6 +255,72 @@ Authorization: Bearer {{authToken}}
 
 # @name delete_installment
 DELETE {{baseUrl}}/installment/18f5c807-a19e-4422-bb53-c5bf26b69e3f
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+#! Compras Futuras
+
+# @name list_future_purchases
+GET {{baseUrl}}/future-purchase
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name future_purchase_projection
+GET {{baseUrl}}/future-purchase/projection
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name get_future_purchase
+GET {{baseUrl}}/future-purchase/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_future_purchase
+POST {{baseUrl}}/future-purchase
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"name": "Notebook",
+	"value": 5000,
+	"valueAdded": 0,
+	"dateAcquisition": "2025-12-31"
+}
+
+###
+
+# @name add_value_future_purchase
+PATCH {{baseUrl}}/future-purchase/00000000-0000-0000-0000-000000000000/add-value
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"value": 500
+}
+
+###
+
+# @name remove_value_future_purchase
+PATCH {{baseUrl}}/future-purchase/00000000-0000-0000-0000-000000000000/remove-value
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"value": 200
+}
+
+###
+
+# @name delete_future_purchase
+DELETE {{baseUrl}}/future-purchase/00000000-0000-0000-0000-000000000000
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
