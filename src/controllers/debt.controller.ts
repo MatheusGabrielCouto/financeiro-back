@@ -82,7 +82,7 @@ constructor(
     return debts
   }
 
-  @Post('/recurrence')
+@Post('/recurrence')
 @UseGuards(JwtAuthGuard)
 async createRecurrence(
   @CurrentUser() user: UserPayload,
@@ -90,12 +90,12 @@ async createRecurrence(
 ) {
   const { title, description, value, installmentsCount, recurrence, dayOfMonth } = body;
 
-  // Obter o mês atual e ajustar para o próximo mês
   const now = new Date();
-  const startDate = new Date(now.setMonth(now.getMonth() + 1)); // Próximo mês
+  const firstDayOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  // Ajustando a data para o início do próximo mês
-  startDate.setDate(1); // Define o dia como o primeiro do próximo mês
+  const startDate = now < firstDayOfNextMonth
+    ? new Date(now.getFullYear(), now.getMonth(), 1)
+    : firstDayOfNextMonth;
 
   // Criando as parcelas automaticamente
   const installments = Array.from({ length: installmentsCount }, (_, i) => {

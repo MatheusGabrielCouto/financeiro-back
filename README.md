@@ -1,99 +1,221 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Financeiro Back
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST para controle financeiro pessoal, desenvolvida com NestJS, Prisma e PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tecnologias
 
-## Description
+- **NestJS** - Framework Node.js
+- **Prisma** - ORM para PostgreSQL
+- **Zod** - Validação de schemas
+- **JWT** - Autenticação
+- **Cloudinary** - Armazenamento de imagens
+- **bcryptjs** - Hash de senhas
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Pré-requisitos
 
-## Project setup
+- Node.js 18+
+- PostgreSQL
+- Conta no Cloudinary (para compras futuras)
+
+## Configuração
+
+1. Clone o repositório e instale as dependências:
 
 ```bash
-$ yarn install
+yarn install
 ```
 
-## Compile and run the project
+2. Configure as variáveis de ambiente no `.env`:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/financial"
+PORT=3333
+JWT_PRIVATE_KEY="sua-chave-privada"
+JWT_PUBLIC_KEY="sua-chave-publica"
+CLOUDINARY_CLOUD_NAME="seu-cloud-name"
+CLOUDINARY_API_KEY="sua-api-key"
+CLOUDINARY_API_SECRET="seu-api-secret"
+CLOUDINARY_URL="sua-url-cloudinary"
+```
+
+3. Execute as migrations e o seed:
 
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+npx prisma migrate dev
+yarn prisma:seed
 ```
 
-## Run tests
+4. Inicie o servidor:
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+yarn dev
 ```
 
-## Deployment
+## Autenticação
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Todas as rotas (exceto criar conta e login) requerem o header:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```
+Authorization: Bearer <access_token>
+```
+
+---
+
+## Funcionalidades
+
+### Autenticação
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/sessions` | Login - retorna `access_token` e dados do usuário |
+| POST | `/accounts` | Criar conta |
+
+**Body login:** `{ "email": "string", "password": "string" }`
+
+**Body criar conta:** `{ "name": "string", "email": "string", "password": "string" }`
+
+---
+
+### Saldo
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/amount` | Retorna saldo atual. Processa entradas recorrentes automaticamente se for o dia de pagamento |
+
+---
+
+### Categorias
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/category` | Listar categorias do usuário |
+| POST | `/category` | Criar categoria |
+| DELETE | `/category/:id` | Deletar categoria (valida se é dono) |
+
+**Body criar:** `{ "title": "string", "description": "string | null" }`
+
+---
+
+### Transações
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/transaction?month=&year=` | Listar transações do mês/ano |
+| POST | `/transaction` | Criar transação |
+
+**Body criar:** `{ "message": "string", "value": number, "type": "DEBIT" | "CREDIT" | "PAY", "categories": ["uuid"]? }`
+
+- **DEBIT** - Débito (reduz saldo)
+- **CREDIT** - Crédito (aumenta saldo)
+- **PAY** - Pagamento (reduz saldo)
+
+---
+
+### Entradas Recorrentes
+
+Cadastro de recebimentos fixos mensais (ex: salário). Ao acessar `/amount` no dia de pagamento, o valor é creditado automaticamente.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/recurring-income` | Listar entradas recorrentes |
+| POST | `/recurring-income` | Criar entrada recorrente |
+| DELETE | `/recurring-income/:id` | Deletar entrada recorrente |
+
+**Body criar:** `{ "title": "string", "value": number, "dayOfMonth": number }` (dayOfMonth: 1-31)
+
+---
+
+### Pagamentos Recorrentes
+
+Cadastro de pagamentos fixos mensais (ex: aluguel, assinaturas). O usuário paga manualmente a parcela do mês atual.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/recurring-payment` | Listar pagamentos recorrentes |
+| POST | `/recurring-payment` | Criar pagamento recorrente |
+| POST | `/recurring-payment/:id/pay` | Pagar parcela do mês atual (gera transação com `isRecurring: true`) |
+| DELETE | `/recurring-payment/:id` | Deletar pagamento recorrente |
+
+**Body criar:** `{ "title": "string", "value": number, "dayOfMonth": number }`
+
+---
+
+### Dívidas (Parceladas)
+
+Dívidas com parcelas definidas (financiamentos, empréstimos).
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/debt` | Listar dívidas com parcelas |
+| GET | `/debt/:id` | Buscar dívida por ID |
+| POST | `/debt` | Criar dívida com parcelas manuais |
+| POST | `/debt/recurrence` | Criar dívida com parcelas automáticas |
+| DELETE | `/debt/:id` | Deletar dívida |
+
+**Body criar (manual):** `{ "title": "string", "description": "string | null", "installments": [{ "value": number, "status": "PAY" | "SCHEDULE", "date": "YYYY-MM-DD" }] }`
+
+**Body criar (recorrência):** `{ "title": "string", "description": "string | null", "value": number, "installmentsCount": number, "recurrence": "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY", "dayOfMonth": "string" }`
+
+---
+
+### Parcelas
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/installment?month=&year=` | Listar parcelas do mês/ano |
+| POST | `/installment` | Adicionar parcela a uma dívida |
+| PATCH | `/installment/:id` | Pagar parcela |
+| DELETE | `/installment/:id` | Deletar parcela |
+
+**Body criar:** `{ "debtId": "uuid", "value": number, "date": "YYYY-MM-DD" }`
+
+---
+
+### Compras Futuras
+
+Lista de desejos com valor e data prevista de aquisição. Suporta upload de imagem (Cloudinary).
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/future-purchase` | Listar compras futuras |
+| POST | `/future-purchase` | Criar compra futura (multipart/form-data com `image`) |
+| DELETE | `/future-purchase/:id` | Deletar compra futura |
+
+**Body criar:** `{ "name": "string", "value": number, "valueAdded": number?, "dateAcquisition": "YYYY-MM-DD" }`
+
+---
+
+### Detalhamento
+
+Resumo financeiro detalhado por mês.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/details?month=&year=` | Detalhes do mês: receitas, despesas, gastos por categoria, projeções de dívidas |
+
+**Retorno:** `period`, `summary` (recurringIncome, recurringPayments, debts, netExpected, totalExpenses, balanceAfterExpenses), `recurringIncomeBreakdown`, `recurringPaymentsBreakdown`, `debtsBreakdown`, `expensesByCategory`, `debtProjections`
+
+---
+
+### Projeção Anual
+
+Projeção de recebimentos e gastos para o ano.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/details/projection?year=` | Projeção anual mês a mês |
+
+**Retorno:** `year`, `monthly` (para cada mês: income, expenses, net), `totals` (annualIncome, annualRecurringPayments, annualDebts, annualHistoricalExpenses, annualProjectedExpenses, annualNet)
+
+A projeção considera: entradas recorrentes, pagamentos recorrentes, parcelas de dívidas e média histórica de gastos (transações PAY/DEBIT de meses anteriores).
+
+---
+
+## Scripts
 
 ```bash
-$ yarn install -g mau
-$ mau deploy
+yarn dev          # Desenvolvimento com watch
+yarn build        # Build de produção
+yarn start        # Iniciar produção
+yarn prisma:seed  # Popular banco com dados iniciais
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

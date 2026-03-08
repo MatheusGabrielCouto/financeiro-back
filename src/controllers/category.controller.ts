@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -54,6 +54,29 @@ export class CategoryController {
         description: description || '',
         userId: user.sub
       }
+    })
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async delete(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string
+  ) {
+    const category = await this.prisma.category.findUnique({
+      where: { id }
+    })
+
+    if (!category) {
+      throw new NotFoundException('Categoria não encontrada')
+    }
+
+    if (category.userId !== user.sub) {
+      throw new ForbiddenException('Você não tem permissão para deletar esta categoria')
+    }
+
+    await this.prisma.category.delete({
+      where: { id }
     })
   }
 }

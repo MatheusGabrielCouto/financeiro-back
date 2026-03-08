@@ -1,5 +1,5 @@
 # @baseUrl = https://financeiro-back.onrender.com
-@baseUrl = http://localhost:3333
+@baseUrl = http://192.168.1.106:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -34,6 +34,88 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 ###
 
+# @name details
+GET {{baseUrl}}/details
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name details_filtered
+GET {{baseUrl}}/details?month=3&year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name details_annual_projection
+GET {{baseUrl}}/details/projection
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name details_annual_projection_filtered
+GET {{baseUrl}}/details/projection?year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+#! Entradas Recorrentes
+
+# @name list_recurring_incomes
+GET {{baseUrl}}/recurring-income
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name create_recurring_income
+POST {{baseUrl}}/recurring-income
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Salário",
+	"value": 3500,
+	"dayOfMonth": 5
+}
+###
+
+# @name delete_recurring_income
+DELETE {{baseUrl}}/recurring-income/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+#! Pagamentos Recorrentes
+
+# @name list_recurring_payments
+GET {{baseUrl}}/recurring-payment
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name create_recurring_payment
+POST {{baseUrl}}/recurring-payment
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Aluguel",
+	"value": 1200,
+	"dayOfMonth": 10
+}
+###
+
+# @name pay_recurring_payment
+POST {{baseUrl}}/recurring-payment/00000000-0000-0000-0000-000000000000/pay
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name delete_recurring_payment
+DELETE {{baseUrl}}/recurring-payment/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
 #! Categorias
 
 # @name list_categories
@@ -52,6 +134,13 @@ Authorization: Bearer {{authToken}}
 	"title": "Salario",
 	"description": "Pagamento salario"
 }
+
+###
+
+# @name delete_category
+DELETE {{baseUrl}}/category/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
 
 ###
 
@@ -138,7 +227,7 @@ Authorization: Bearer {{authToken}}
 #! Installment
 
 # @name list_installment
-GET {{baseUrl}}/installment?month=2&year=2025
+GET {{baseUrl}}/installment?month=3&year=2026
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 

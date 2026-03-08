@@ -11,6 +11,9 @@ import { DebtController } from './controllers/debt.controller';
 import { InstallmentController } from './controllers/installment.controller';
 import { Amount } from './controllers/amount.controller';
 import { FuturePurchaseController } from './controllers/future-purchase.controller';
+import { RecurringIncomeController } from './controllers/recurring-income.controller';
+import { DetailsController } from './controllers/details.controller';
+import { RecurringPaymentController } from './controllers/recurring-payment.controller';
 import { CloudinaryModule } from './modules/cloudinary.module';
 
 @Module({
@@ -31,7 +34,10 @@ import { CloudinaryModule } from './modules/cloudinary.module';
     DebtController,
     InstallmentController,
     Amount,
-    FuturePurchaseController
+    FuturePurchaseController,
+    RecurringIncomeController,
+    RecurringPaymentController,
+    DetailsController
   ],
   providers: [],
 })

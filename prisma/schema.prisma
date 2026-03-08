@@ -14,103 +14,132 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-  name String
-  email String @unique
-  password String
-  amount Float @default(0)
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  amount    Float    @default(0)
   createdAt DateTime @default(now()) @map("created_at")
 
-  categories Category[]
-  debts Debt[]
-  transactions Transaction[]
-  futurePurchases FuturePurchase[]
+  categories        Category[]
+  debts             Debt[]
+  transactions      Transaction[]
+  futurePurchases   FuturePurchase[]
+  recurringIncomes  RecurringIncome[]
+  recurringPayments RecurringPayment[]
+
   @@map("users")
 }
 
+model RecurringPayment {
+  id              String    @id @default(uuid())
+  title           String
+  value           Float
+  dayOfMonth      Int
+  lastProcessedAt DateTime?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("recurring_payments")
+}
+
+model RecurringIncome {
+  id              String    @id @default(uuid())
+  title           String
+  value           Float
+  dayOfMonth      Int
+  lastProcessedAt DateTime?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("recurring_incomes")
+}
+
 model Category {
-  id String @id @default(uuid())
-  title String
+  id          String @id @default(uuid())
+  title       String
   description String
 
   userId String
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   transactions TransactionOnCategory[]
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt    DateTime                @default(now()) @map("created_at")
 
   @@map("categories")
 }
 
 model Transaction {
-  id String @id @default(uuid())
-  value Float
-  message String
+  id          String  @id @default(uuid())
+  value       Float
+  message     String
+  isRecurring Boolean @default(false) @map("is_recurring")
 
   userId String
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   categories TransactionOnCategory[]
-  type TypeTransaction
+  type       TypeTransaction
 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("transactions")
 }
 
-
 model TransactionOnCategory {
   transactionId String
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  
-  categoryId    String
-  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([transactionId, categoryId])
   @@map("transaction_categories")
 }
 
 model Debt {
-  id String @id @default(uuid())
-  title String
+  id          String @id @default(uuid())
+  title       String
   description String
 
   recurrence RecurrenceType @default(MONTHLY)
 
   userId String
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   installments Installment[]
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
 
   @@map("debts")
 }
 
 model Installment {
-  id String @id @default(uuid())
-  value Float
-  status StatusInstallment
-  order Float
+  id              String            @id @default(uuid())
+  value           Float
+  status          StatusInstallment
+  order           Float
   dateTransaction DateTime
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
 
   debtId String
-  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
   @@map("installments")
 }
 
 model FuturePurchase {
-  id String @id @default(uuid())
-  name String
-  value Float
-  valueAdded Float @map("value_added")
+  id              String   @id @default(uuid())
+  name            String
+  value           Float
+  valueAdded      Float    @map("value_added")
   dateAcquisition DateTime @map("date_acquisition")
-  createdAt DateTime @default(now()) @map("created_at")
-  image String
+  createdAt       DateTime @default(now()) @map("created_at")
+  image           String
 
   userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   @@map("future_purchases")
 }
