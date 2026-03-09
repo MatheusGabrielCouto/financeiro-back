@@ -27,9 +27,10 @@ export class PushTokenController {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.pushToken.deleteMany({ where: { token } });
-      await tx.pushToken.deleteMany({ where: { userId: user.sub } });
-      await tx.pushToken.create({
-        data: { token, userId: user.sub }
+      await tx.pushToken.upsert({
+        where: { userId: user.sub },
+        create: { token, userId: user.sub },
+        update: { token }
       });
     });
 
