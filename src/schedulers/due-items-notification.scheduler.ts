@@ -8,7 +8,7 @@ export class DueItemsNotificationScheduler {
     private dueItemsNotification: DueItemsNotificationService
   ) {}
 
-  @Cron("* * * * *") // TODO: voltar para "0 8 * * *" após testar
+  @Cron("0 8 * * *") // TODO: voltar para "0 8 * * *" após testar
   async handleDueTomorrowNotifications() {
     await this.dueItemsNotification.sendDueTomorrowNotifications();
   }
