@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -102,7 +103,7 @@ export class RecurringPaymentController {
     }
 
     if (userData.amount - recurringPayment.value < 0) {
-      throw new NotFoundException("Saldo em conta insuficiente");
+      throw new BadRequestException("Saldo em conta insuficiente");
     }
 
     await this.prisma.$transaction(async (tx) => {

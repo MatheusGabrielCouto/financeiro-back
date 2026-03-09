@@ -317,6 +317,99 @@ Authorization: Bearer {{authToken}}
 
 ###
 
+#! Cartão de Crédito
+
+# @name list_credit_cards
+GET {{baseUrl}}/credit-card
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_credit_card
+POST {{baseUrl}}/credit-card
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"name": "Nubank",
+	"brand": "Mastercard",
+	"limit": 5000,
+	"closingDay": 15,
+	"dueDay": 22,
+	"lastDigits": "1234"
+}
+
+###
+
+# @name delete_credit_card
+DELETE {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_invoice
+GET {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/invoice?month=3&year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_limit
+GET {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/limit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_statement
+GET {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/statement
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_statement_filtered
+GET {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/statement?month=3&year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_risk
+GET {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/risk
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name credit_card_purchase
+POST {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/purchase
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Compra cartão",
+	"description": "Supermercado",
+	"value": 1200,
+	"installmentsCount": 6
+}
+
+###
+
+# @name credit_card_pay_invoice
+POST {{baseUrl}}/credit-card/00000000-0000-0000-0000-000000000000/pay-invoice
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"month": 3,
+	"year": 2025
+}
+
+###
+
 #! Installment
 
 # @name list_installment

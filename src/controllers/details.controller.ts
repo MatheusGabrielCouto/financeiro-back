@@ -32,7 +32,7 @@ export class DetailsController {
         }),
         this.prisma.installment.findMany({
           where: {
-            debt: { userId: user.sub },
+            debt: { userId: user.sub, cardId: null },
             dateTransaction: { gte: startOfMonth, lte: endOfMonth },
             status: "SCHEDULE"
           },
@@ -55,7 +55,7 @@ export class DetailsController {
           }
         }),
         this.prisma.debt.findMany({
-          where: { userId: user.sub },
+          where: { userId: user.sub, cardId: null },
           include: {
             installments: {
               where: { status: "SCHEDULE" },
@@ -284,7 +284,7 @@ export class DetailsController {
         }),
         this.prisma.installment.findMany({
           where: {
-            debt: { userId: user.sub },
+            debt: { userId: user.sub, cardId: null },
             dateTransaction: { gte: startOfYear, lte: endOfYear },
             status: "SCHEDULE"
           }

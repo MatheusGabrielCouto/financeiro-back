@@ -207,7 +207,7 @@ export class SpendingInsightsController {
       : 0;
 
     const debts = await this.prisma.debt.findMany({
-      where: { userId: user.sub },
+      where: { userId: user.sub, cardId: null },
       include: {
         installments: {
           where: { status: "SCHEDULE" },

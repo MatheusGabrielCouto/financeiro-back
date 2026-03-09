@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, UseGuards } from "@nestjs/common";
 import { RecurrenceType, StatusInstallment } from "@prisma/client";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
@@ -58,7 +58,8 @@ constructor(
   ) {
     const debts = this.prisma.debt.findMany({
       where: {
-        userId: user.sub
+        userId: user.sub,
+        cardId: null,
       },
       include: {
         installments: {
@@ -78,10 +79,11 @@ constructor(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string
   ) {
-    
-    const debts = this.prisma.debt.findUnique({
+    return this.prisma.debt.findFirst({
       where: {
-        id        
+        id,
+        userId: user.sub,
+        cardId: null,
       },
       include: {
         installments: {
@@ -90,9 +92,7 @@ constructor(
           }
         }
       }
-    })
-
-    return debts
+    });
   }
 
 @Post('/recurrence')
@@ -228,13 +228,16 @@ async createRecurrence(
   @Delete('/:id')
   @UseGuards(JwtAuthGuard)
   async deleteDebt(
+    @CurrentUser() user: UserPayload,
     @Param() {id}: {id: string}
   ) {
+    const debt = await this.prisma.debt.findFirst({
+      where: { id, userId: user.sub, cardId: null },
+    });
+    if (!debt) throw new NotFoundException("Dívida não encontrada");
     await this.prisma.debt.delete({
-      where: {id},
-      include: {
-        installments: true
-      }
-    })
+      where: { id },
+      include: { installments: true },
+    });
   }
 }

@@ -22,6 +22,7 @@ import { ReportsController } from './controllers/reports.controller';
 import { InstallmentSimulationController } from './controllers/installment-simulation.controller';
 import { EmergencyReserveController } from './controllers/emergency-reserve.controller';
 import { NotificationModule } from './modules/notification.module';
+import { CreditCardModule } from './credit-card/credit-card.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { NotificationModule } from './modules/notification.module';
     AuthModule,
     PrismaModule,
     NotificationModule,
+    CreditCardModule,
   ],
   controllers: [
     CreateAccountControleler,

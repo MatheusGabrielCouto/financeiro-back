@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -92,7 +92,7 @@ export class TransactionController {
     }
 
     if (type === 'PAY' && findUser.amount - value < 0) {
-      throw new NotFoundException('Saldo em conta insuficiente')
+      throw new BadRequestException('Saldo em conta insuficiente')
     }
 
     // 1️⃣ Criar a transação primeiro

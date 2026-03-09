@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -31,13 +31,14 @@ export class InstallmentController {
     const yearNumber = parseInt(year, 10);
 
     if (isNaN(monthNumber) || isNaN(yearNumber)) {
-      throw new Error('Mês e ano devem ser números válidos');
+      throw new BadRequestException('Mês e ano devem ser números válidos');
     }
 
     const installments = await this.prisma.installment.findMany({
       where: {
         debt: {
           userId: user.sub,
+          cardId: null,
         },
         dateTransaction: {
           gte: new Date(yearNumber, monthNumber - 1, 1),
@@ -99,7 +100,7 @@ export class InstallmentController {
     })
 
     if(installment?.status === 'PAY') {
-      throw new NotFoundException('Erro ao efetuar o pagamento')
+      throw new BadRequestException('Esta parcela já foi paga')
     }
 
     const debt = await this.prisma.debt.findUnique({
@@ -109,7 +110,7 @@ export class InstallmentController {
     })
 
     if(debt?.userId !== user.sub) {
-      throw new UnauthorizedException('Error')
+      throw new UnauthorizedException('Acesso negado')
     }
 
     const findUser = await this.prisma.user.findUnique({
@@ -127,7 +128,7 @@ export class InstallmentController {
     }
 
     if (findUser.amount - installment.value < 0) {
-      throw new NotFoundException('Saldo em conta insuficiente')
+      throw new BadRequestException('Saldo em conta insuficiente')
     }
 
     await this.prisma.transaction.create({
@@ -171,7 +172,7 @@ export class InstallmentController {
     })
 
     if(!debt?.installments) {
-      throw new NotFoundException('Erro ao criar parcela.')
+      throw new NotFoundException('Dívida não encontrada')
     }
 
     await this.prisma.installment.create({
@@ -191,7 +192,7 @@ export class InstallmentController {
     // Verifica se a parcela existe
     const installment = await this.prisma.installment.findUnique({ where: { id } });
     if (!installment) {
-      throw new NotFoundException('Installment not found');
+      throw new NotFoundException('Parcela não encontrada');
     }
 
     // Obtém a dívida associada e suas parcelas
@@ -201,7 +202,7 @@ export class InstallmentController {
     });
 
     if (!debt) {
-      throw new NotFoundException('Debt not found');
+      throw new NotFoundException('Dívida não encontrada');
     }
 
     // Remove a parcela primeiro

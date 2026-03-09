@@ -10,9 +10,9 @@ export class ZodValidationPipe implements PipeTransform {
       this.schema.parse(value)
     } catch (error) {
       if(error instanceof ZodError) {
-        throw new BadRequestException({errors: fromZodError(error), message: 'Validation failed', statusCode: 400})
+        throw new BadRequestException({errors: fromZodError(error), message: 'Falha na validação', statusCode: 400})
       }
-      throw new BadRequestException('Validation failed')
+      throw new BadRequestException('Falha na validação')
     }
 
     return value

@@ -34,7 +34,7 @@ export class FinancialScoreController {
         }),
         this.prisma.installment.findMany({
           where: {
-            debt: { userId: user.sub },
+            debt: { userId: user.sub, cardId: null },
             status: "SCHEDULE"
           }
         }),

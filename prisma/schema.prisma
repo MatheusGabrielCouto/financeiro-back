@@ -23,6 +23,7 @@ model User {
 
   categories        Category[]
   categoryBudgets   CategoryBudget[]
+  creditCards       CreditCard[]
   debts             Debt[]
   transactions      Transaction[]
   futurePurchases   FuturePurchase[]
@@ -31,6 +32,23 @@ model User {
   pushTokens        PushToken[]
 
   @@map("users")
+}
+
+model CreditCard {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  brand      String?
+  limit      Float
+  closingDay Int
+  dueDay     Int
+  lastDigits String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  debts Debt[]
+
+  @@map("credit_cards")
 }
 
 model PushToken {
@@ -136,6 +154,9 @@ model Debt {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  cardId     String?
+  creditCard CreditCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
   installments Installment[]
   createdAt    DateTime      @default(now()) @map("created_at")
