@@ -122,8 +122,8 @@ model Category {
   title       String
   description String
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   transactions TransactionOnCategory[]
   budgets      CategoryBudget[]

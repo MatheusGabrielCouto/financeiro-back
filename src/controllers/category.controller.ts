@@ -25,16 +25,20 @@ export class CategoryController {
   async list(
     @CurrentUser() user: UserPayload
   ) {
-    const categories = this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: {
-        userId: user.sub
+        OR: [
+          { userId: null },
+          { userId: user.sub }
+        ]
       },
       omit: {
         userId: true
       },
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: [
+        { userId: 'asc' },
+        { createdAt: 'desc' }
+      ]
     })
 
     return categories
@@ -71,8 +75,8 @@ export class CategoryController {
       throw new NotFoundException('Categoria não encontrada')
     }
 
-    if (category.userId !== user.sub) {
-      throw new ForbiddenException('Você não tem permissão para deletar esta categoria')
+    if (!category.userId || category.userId !== user.sub) {
+      throw new ForbiddenException('Categorias do sistema não podem ser deletadas')
     }
 
     await this.prisma.category.delete({

@@ -106,7 +106,7 @@ export class BudgetController {
       throw new NotFoundException("Categoria não encontrada");
     }
 
-    if (category.userId !== user.sub) {
+    if (category.userId && category.userId !== user.sub) {
       throw new ForbiddenException(
         "Você não tem permissão para definir orçamento nesta categoria"
       );
