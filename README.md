@@ -123,6 +123,42 @@ Compara gastos do mês atual com a média dos últimos 6 meses. Gera alertas par
 
 ---
 
+### Planejador de Quitação de Dívidas
+
+Mostra todas as dívidas não recorrentes e calcula o tempo para quitar usando método bola de neve e avalanche.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/spending-insights/debt-planner?monthlyPayment=` | Retorna planejamento de quitação |
+
+**Query params:** `monthlyPayment` (valor que pode pagar por mês; se omitido, usa soma dos mínimos)
+
+**Retorno:** `{ message: "Você quitará todas as dívidas em X meses", totalDebt, debts, snowball, avalanche }`
+
+- **Bola de neve:** quita primeiro as dívidas menores (motivação)
+- **Avalanche:** quita primeiro as dívidas maiores (reduz custo total)
+
+---
+
+### Score Financeiro
+
+Nota de 0 a 100 baseada em dívidas, gastos, renda e reserva do usuário.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/financial-score` | Retorna score e breakdown por categoria |
+
+**Retorno:** `{ score, rating, breakdown: { debts, expenses, income, reserve }, tips }`
+
+- **Dívidas (25 pts):** relação dívida total / renda anual
+- **Gastos (25 pts):** relação gastos / renda
+- **Renda (25 pts):** nível de renda mensal
+- **Reserva (25 pts):** meses de reserva de emergência
+
+**Classificação:** Excelente (80+), Bom (60+), Regular (40+), Atenção (20+), Crítico (&lt;20)
+
+---
+
 ### Transações
 
 | Método | Rota | Descrição |

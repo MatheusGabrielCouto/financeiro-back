@@ -54,7 +54,13 @@ export class BudgetController {
         where: {
           userId: user.sub,
           type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfMonth, lte: endOfMonth }
+          createdAt: { gte: startOfMonth, lte: endOfMonth },
+          NOT: {
+            OR: [
+              { message: { startsWith: "Depósito na caixinha" } },
+              { message: { startsWith: "Retirada da caixinha" } }
+            ]
+          }
         },
         include: {
           categories: { include: { category: true } }

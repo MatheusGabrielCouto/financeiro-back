@@ -40,7 +40,13 @@ export class SpendingInsightsController {
         where: {
           userId: user.sub,
           type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
+          createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth },
+          NOT: {
+            OR: [
+              { message: { startsWith: "Depósito na caixinha" } },
+              { message: { startsWith: "Retirada da caixinha" } }
+            ]
+          }
         },
         include: {
           categories: { include: { category: true } }
@@ -50,7 +56,13 @@ export class SpendingInsightsController {
         where: {
           userId: user.sub,
           type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfHistory, lt: startOfCurrentMonth }
+          createdAt: { gte: startOfHistory, lt: startOfCurrentMonth },
+          NOT: {
+            OR: [
+              { message: { startsWith: "Depósito na caixinha" } },
+              { message: { startsWith: "Retirada da caixinha" } }
+            ]
+          }
         },
         include: {
           categories: { include: { category: true } }
@@ -182,6 +194,197 @@ export class SpendingInsightsController {
       transactions.map((t) => `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`)
     );
     return months.size;
+  }
+
+  @Get("debt-planner")
+  @UseGuards(JwtAuthGuard)
+  async getDebtPlanner(
+    @CurrentUser() user: UserPayload,
+    @Query("monthlyPayment") monthlyPaymentParam?: string
+  ) {
+    const monthlyPayment = monthlyPaymentParam
+      ? parseFloat(monthlyPaymentParam)
+      : 0;
+
+    const debts = await this.prisma.debt.findMany({
+      where: { userId: user.sub },
+      include: {
+        installments: {
+          where: { status: "SCHEDULE" },
+          orderBy: { dateTransaction: "asc" }
+        }
+      }
+    });
+
+    const debtsWithBalance = debts
+      .filter((d) => d.installments.length > 0)
+      .map((d) => {
+        const remainingValue = d.installments.reduce((s, i) => s + i.value, 0);
+        const minPayment =
+          d.installments.length > 0 ? remainingValue / d.installments.length : 0;
+        return {
+          id: d.id,
+          title: d.title,
+          remainingValue,
+          minPayment,
+          installmentsCount: d.installments.length
+        };
+      });
+
+    const totalDebt = debtsWithBalance.reduce((s, d) => s + d.remainingValue, 0);
+    const totalMinPayment = debtsWithBalance.reduce(
+      (s, d) => s + d.minPayment,
+      0
+    );
+
+    const effectiveMonthlyPayment =
+      monthlyPayment > 0 ? monthlyPayment : totalMinPayment;
+    const insufficientPayment =
+      effectiveMonthlyPayment < totalMinPayment &&
+      totalMinPayment > 0;
+
+    if (debtsWithBalance.length === 0) {
+      return {
+        message: "Você não possui dívidas pendentes",
+        totalDebt: 0,
+        snowball: null,
+        avalanche: null
+      };
+    }
+
+    const snowball = this.simulatePayoff(
+      debtsWithBalance,
+      monthlyPayment,
+      "snowball"
+    );
+    const avalanche = this.simulatePayoff(
+      debtsWithBalance,
+      monthlyPayment,
+      "avalanche"
+    );
+
+    const monthsToComplete = Math.min(
+      snowball.monthsToComplete,
+      avalanche.monthsToComplete
+    );
+
+    return {
+      totalDebt: Math.round(totalDebt * 100) / 100,
+      totalMinPayment: Math.round(totalMinPayment * 100) / 100,
+      monthlyPayment: effectiveMonthlyPayment,
+      insufficientPayment,
+      warning: insufficientPayment
+        ? `O valor informado (R$ ${effectiveMonthlyPayment.toFixed(2)}) é menor que o total dos pagamentos mínimos (R$ ${totalMinPayment.toFixed(2)}). Será aplicado o valor disponível em cada mês.`
+        : undefined,
+      message: `Você quitará todas as dívidas em ${monthsToComplete} meses`,
+      debts: debtsWithBalance.map((d) => ({
+        id: d.id,
+        title: d.title,
+        remainingValue: Math.round(d.remainingValue * 100) / 100,
+        minPayment: Math.round(d.minPayment * 100) / 100
+      })),
+      snowball: {
+        ...snowball,
+        description:
+          "Método bola de neve: quite primeiro as dívidas menores para ganhar motivação"
+      },
+      avalanche: {
+        ...avalanche,
+        description:
+          "Método avalanche: quite primeiro as dívidas maiores para reduzir o custo total"
+      }
+    };
+  }
+
+  private simulatePayoff(
+    debts: Array<{
+      id: string;
+      title: string;
+      remainingValue: number;
+      minPayment: number;
+    }>,
+    monthlyPayment: number,
+    method: "snowball" | "avalanche"
+  ): {
+    monthsToComplete: number;
+    payoffOrder: Array<{ title: string; month: number }>;
+    monthlyBreakdown: Array<{ month: number; paid: number; remaining: number }>;
+  } {
+    const effectivePayment =
+      monthlyPayment > 0
+        ? monthlyPayment
+        : debts.reduce((s, d) => s + d.minPayment, 0);
+
+    const sorted =
+      method === "snowball"
+        ? [...debts].sort((a, b) => a.remainingValue - b.remainingValue)
+        : [...debts].sort((a, b) => b.remainingValue - a.remainingValue);
+
+    const balances = new Map(debts.map((d) => [d.id, d.remainingValue]));
+    const payoffOrder: Array<{ title: string; month: number }> = [];
+    const monthlyBreakdown: Array<{
+      month: number;
+      paid: number;
+      remaining: number;
+    }> = [];
+
+    let month = 0;
+
+    while (Array.from(balances.values()).some((v) => v > 0.01)) {
+      let available = effectivePayment;
+      let totalPaid = 0;
+
+      for (const debt of sorted) {
+        const balance = balances.get(debt.id) ?? 0;
+        if (balance <= 0) continue;
+
+        const minPay = Math.min(
+          balance,
+          debt.minPayment,
+          Math.max(0, available)
+        );
+        if (minPay > 0) {
+          balances.set(debt.id, balance - minPay);
+          available -= minPay;
+          totalPaid += minPay;
+        }
+      }
+
+      for (const debt of sorted) {
+        if (available <= 0.01) break;
+        const balance = balances.get(debt.id) ?? 0;
+        if (balance <= 0) continue;
+
+        const extraPay = Math.min(balance, available);
+        balances.set(debt.id, balance - extraPay);
+        available -= extraPay;
+        totalPaid += extraPay;
+
+        if ((balances.get(debt.id) ?? 0) <= 0.01) {
+          payoffOrder.push({ title: debt.title, month });
+        }
+      }
+
+      const totalRemaining = Array.from(balances.values()).reduce(
+        (s, v) => s + (v > 0 ? v : 0),
+        0
+      );
+
+      monthlyBreakdown.push({
+        month,
+        paid: Math.round(totalPaid * 100) / 100,
+        remaining: Math.round(totalRemaining * 100) / 100
+      });
+
+      month++;
+      if (month > 600) break;
+    }
+
+    return {
+      monthsToComplete: month,
+      payoffOrder,
+      monthlyBreakdown: monthlyBreakdown.slice(0, 24)
+    };
   }
 
   private buildCategoryTitles(

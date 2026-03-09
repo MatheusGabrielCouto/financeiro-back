@@ -1,5 +1,5 @@
-@baseUrl = https://financeiro-back.onrender.com
-# @baseUrl = http://192.168.1.106:3333
+# @baseUrl = https://financeiro-back.onrender.com
+@baseUrl = http://192.168.1.106:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -190,6 +190,20 @@ Authorization: Bearer {{authToken}}
 
 # @name spending_insights_filtered
 GET {{baseUrl}}/spending-insights?month=3&year=2025&threshold=20
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name debt_planner
+GET {{baseUrl}}/spending-insights/debt-planner?monthlyPayment=3000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+#! Score Financeiro
+
+# @name financial_score
+GET {{baseUrl}}/financial-score
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 ###
@@ -394,6 +408,67 @@ Authorization: Bearer {{authToken}}
 # @name delete_future_purchase
 DELETE {{baseUrl}}/future-purchase/00000000-0000-0000-0000-000000000000
 Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+#! Relatórios
+
+# @name reports_expenses_by_category
+GET {{baseUrl}}/reports/expenses-by-category
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name reports_expenses_by_category_months
+GET {{baseUrl}}/reports/expenses-by-category?months=12
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name reports_expenses_by_month
+GET {{baseUrl}}/reports/expenses-by-month
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name reports_evolution
+GET {{baseUrl}}/reports/evolution
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name reports_evolution_months
+GET {{baseUrl}}/reports/evolution?months=12
+Authorization: Bearer {{authToken}}
+
+###
+
+#! Simulação de Parcelamento
+
+# @name installment_simulation
+POST {{baseUrl}}/installment-simulation
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"name": "iPhone",
+	"installments": 12,
+	"value": 600
+}
+
+###
+
+#! Reserva de Emergência
+
+# @name emergency_reserve
+GET {{baseUrl}}/emergency-reserve
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name emergency_reserve_months
+GET {{baseUrl}}/emergency-reserve?months=3
 Authorization: Bearer {{authToken}}
 
 ###

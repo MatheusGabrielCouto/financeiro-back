@@ -42,7 +42,13 @@ export class DetailsController {
           where: {
             userId: user.sub,
             type: { in: ["PAY", "DEBIT"] },
-            createdAt: { gte: startOfMonth, lte: endOfMonth }
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+            NOT: {
+              OR: [
+                { message: { startsWith: "Depósito na caixinha" } },
+                { message: { startsWith: "Retirada da caixinha" } }
+              ]
+            }
           },
           include: {
             categories: { include: { category: true } }
@@ -287,7 +293,13 @@ export class DetailsController {
           where: {
             userId: user.sub,
             type: { in: ["PAY", "DEBIT"] },
-            createdAt: { lt: startOfYear }
+            createdAt: { lt: startOfYear },
+            NOT: {
+              OR: [
+                { message: { startsWith: "Depósito na caixinha" } },
+                { message: { startsWith: "Retirada da caixinha" } }
+              ]
+            }
           },
           select: { value: true, createdAt: true }
         })

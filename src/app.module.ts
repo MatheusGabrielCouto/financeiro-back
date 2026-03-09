@@ -17,6 +17,10 @@ import { BudgetController } from './controllers/budget.controller';
 import { SpendingInsightsController } from './controllers/spending-insights.controller';
 import { RecurringPaymentController } from './controllers/recurring-payment.controller';
 import { PushTokenController } from './controllers/push-token.controller';
+import { FinancialScoreController } from './controllers/financial-score.controller';
+import { ReportsController } from './controllers/reports.controller';
+import { InstallmentSimulationController } from './controllers/installment-simulation.controller';
+import { EmergencyReserveController } from './controllers/emergency-reserve.controller';
 import { NotificationModule } from './modules/notification.module';
 
 @Module({
@@ -43,7 +47,11 @@ import { NotificationModule } from './modules/notification.module';
     DetailsController,
     BudgetController,
     SpendingInsightsController,
-    PushTokenController
+    PushTokenController,
+    FinancialScoreController,
+    ReportsController,
+    InstallmentSimulationController,
+    EmergencyReserveController
   ],
   providers: [],
 })
