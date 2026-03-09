@@ -13,7 +13,12 @@ import { Amount } from './controllers/amount.controller';
 import { FuturePurchaseController } from './controllers/future-purchase.controller';
 import { RecurringIncomeController } from './controllers/recurring-income.controller';
 import { DetailsController } from './controllers/details.controller';
+import { BudgetController } from './controllers/budget.controller';
+import { SpendingInsightsController } from './controllers/spending-insights.controller';
 import { RecurringPaymentController } from './controllers/recurring-payment.controller';
+import { PushTokenController } from './controllers/push-token.controller';
+import { NotificationModule } from './modules/notification.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,6 +27,7 @@ import { RecurringPaymentController } from './controllers/recurring-payment.cont
     }),
     AuthModule,
     PrismaModule,
+    NotificationModule,
   ],
   controllers: [
     CreateAccountControleler,
@@ -34,7 +40,10 @@ import { RecurringPaymentController } from './controllers/recurring-payment.cont
     FuturePurchaseController,
     RecurringIncomeController,
     RecurringPaymentController,
-    DetailsController
+    DetailsController,
+    BudgetController,
+    SpendingInsightsController,
+    PushTokenController
   ],
   providers: [],
 })

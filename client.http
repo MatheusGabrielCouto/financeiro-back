@@ -144,6 +144,78 @@ Authorization: Bearer {{authToken}}
 
 ###
 
+#! Orçamento por Categoria
+
+# @name list_budgets
+GET {{baseUrl}}/budget
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name list_budgets_filtered
+GET {{baseUrl}}/budget?month=3&year=2025
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name upsert_budget
+PUT {{baseUrl}}/budget
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"categoryId": "00000000-0000-0000-0000-000000000000",
+	"month": 3,
+	"year": 2025,
+	"amount": 800
+}
+###
+
+# @name delete_budget
+DELETE {{baseUrl}}/budget/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+#! Detecção de Gastos Excessivos
+
+# @name spending_insights
+GET {{baseUrl}}/spending-insights
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+# @name spending_insights_filtered
+GET {{baseUrl}}/spending-insights?month=3&year=2025&threshold=20
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+###
+
+#! Push Notifications
+
+# @name register_push_token
+POST {{baseUrl}}/push-token
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
+###
+
+# @name remove_push_token
+DELETE {{baseUrl}}/push-token
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
+###
+
 #! Transactions
 
 # @name list_transactions

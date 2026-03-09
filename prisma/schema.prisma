@@ -22,13 +22,25 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   categories        Category[]
+  categoryBudgets   CategoryBudget[]
   debts             Debt[]
   transactions      Transaction[]
   futurePurchases   FuturePurchase[]
   recurringIncomes  RecurringIncome[]
   recurringPayments RecurringPayment[]
+  pushTokens        PushToken[]
 
   @@map("users")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("push_tokens")
 }
 
 model RecurringPayment {
@@ -66,9 +78,25 @@ model Category {
   user   User   @relation(fields: [userId], references: [id])
 
   transactions TransactionOnCategory[]
+  budgets      CategoryBudget[]
   createdAt    DateTime                @default(now()) @map("created_at")
 
   @@map("categories")
+}
+
+model CategoryBudget {
+  id         String   @id @default(uuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month      Int
+  year       Int
+  amount     Float
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, categoryId, month, year])
+  @@map("category_budgets")
 }
 
 model Transaction {

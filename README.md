@@ -9,6 +9,8 @@ API REST para controle financeiro pessoal, desenvolvida com NestJS, Prisma e Pos
 - **Zod** - Validação de schemas
 - **JWT** - Autenticação
 - **bcryptjs** - Hash de senhas
+- **expo-server-sdk** - Push notifications
+- **@nestjs/schedule** - Cron jobs
 
 ## Pré-requisitos
 
@@ -30,6 +32,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/financial"
 PORT=3333
 JWT_PRIVATE_KEY="sua-chave-privada"
 JWT_PUBLIC_KEY="sua-chave-publica"
+EXPO_ACCESS_TOKEN="opcional"  # Para push notifications com Expo
 ```
 
 3. Execute as migrations e o seed:
@@ -87,6 +90,36 @@ Authorization: Bearer <access_token>
 | DELETE | `/category/:id` | Deletar categoria (valida se é dono) |
 
 **Body criar:** `{ "title": "string", "description": "string | null" }`
+
+---
+
+### Orçamento por Categoria
+
+Define quanto o usuário quer gastar por categoria no mês. Ideal para barras de progresso no app.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/budget?month=&year=` | Listar orçamentos com gasto real e progresso (spent, remaining, percentageUsed) |
+| PUT | `/budget` | Criar ou atualizar orçamento (upsert) |
+| DELETE | `/budget/:id` | Deletar orçamento |
+
+**Body upsert:** `{ "categoryId": "uuid", "month": number, "year": number, "amount": number }`
+
+**Retorno GET (para barra de progresso):** `{ id, categoryId, categoryTitle, amount, spent, remaining, percentageUsed, month, year }`
+
+---
+
+### Detecção de Gastos Excessivos
+
+Compara gastos do mês atual com a média dos últimos 6 meses. Gera alertas para exibir no front (ex: "Você gastou 40% mais em Transporte").
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/spending-insights?month=&year=&threshold=` | Retorna insights e alertas de gastos excessivos |
+
+**Query params:** `month`, `year` (padrão: atual), `threshold` (%, padrão: 20 - considera excessivo quando gasto atual > média + threshold)
+
+**Retorno:** `{ insights: string[], averageMonthlySpending, currentMonthSpending, categoryAlerts, monthsAnalyzed }`
 
 ---
 
@@ -207,6 +240,21 @@ Projeção de recebimentos e gastos para o ano.
 **Retorno:** `year`, `monthly` (para cada mês: income, expenses, net), `totals` (annualIncome, annualRecurringPayments, annualDebts, annualHistoricalExpenses, annualProjectedExpenses, annualNet)
 
 A projeção considera: entradas recorrentes, pagamentos recorrentes, parcelas de dívidas e média histórica de gastos (transações PAY/DEBIT de meses anteriores).
+
+---
+
+### Push Notifications
+
+Notificações de contas que vencem em 1 dia. O cron roda diariamente às 8h.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/push-token` | Registrar token Expo para receber notificações |
+| DELETE | `/push-token` | Remover token |
+
+**Body:** `{ "token": "ExponentPushToken[xxx]" }`
+
+**Contas notificadas:** Pagamentos recorrentes (dayOfMonth = amanhã, não pagos no mês) e parcelas de dívidas (dateTransaction = amanhã, status SCHEDULE).
 
 ---
 
