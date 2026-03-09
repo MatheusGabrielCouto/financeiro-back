@@ -131,12 +131,23 @@ export class InstallmentController {
       throw new BadRequestException('Saldo em conta insuficiente')
     }
 
-    await this.prisma.transaction.create({
-      data: {
-        message: debt.description,
-        type: 'PAY',
-        value: installment?.value,
-        userId: user.sub
+    await this.prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.create({
+        data: {
+          message: debt.description,
+          type: 'PAY',
+          value: installment?.value,
+          userId: user.sub
+        }
+      })
+
+      if (debt.categoryId) {
+        await tx.transactionOnCategory.create({
+          data: {
+            transactionId: transaction.id,
+            categoryId: debt.categoryId
+          }
+        })
       }
     })
 

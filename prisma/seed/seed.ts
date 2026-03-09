@@ -19,13 +19,31 @@ async function main() {
 
   await prisma.category.deleteMany({ where: { userId: null } })
 
-  await prisma.category.createMany({
-    data: defaultCategories.map(c => ({
-      title: c.title,
-      description: c.description,
-      userId: null
-    }))
-  })
+  for (const parent of defaultCategories) {
+    const { children, ...parentData } = parent
+    const createdParent = await prisma.category.create({
+      data: {
+        title: parentData.title,
+        description: parentData.description,
+        icon: parentData.icon,
+        color: parentData.color,
+        userId: null
+      }
+    })
+
+    for (const child of children) {
+      await prisma.category.create({
+        data: {
+          title: child.title,
+          description: child.description,
+          icon: child.icon,
+          color: child.color,
+          parentId: createdParent.id,
+          userId: null
+        }
+      })
+    }
+  }
 }
 
 main()

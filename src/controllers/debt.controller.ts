@@ -10,6 +10,7 @@ import { z } from "zod";
 const createDebtBodySchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
+  categoryId: z.string().uuid().nullable().optional(),
   installments: z.array(z.object({
     value: z.number(),
     status: z.enum(['PAY', 'SCHEDULE']),
@@ -20,6 +21,7 @@ const createDebtBodySchema = z.object({
 const createDebtBodyRecurrenceSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
+  categoryId: z.string().uuid().nullable().optional(),
   value: z.number(),
   installmentsCount: z.number().min(1),
   recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
@@ -66,7 +68,8 @@ constructor(
           orderBy: {
             order: "asc"
           }
-        }
+        },
+        category: true
       }
     })
 
@@ -90,7 +93,8 @@ constructor(
           orderBy: {
             order: "asc"
           }
-        }
+        },
+        category: true
       }
     });
   }
@@ -101,7 +105,7 @@ async createRecurrence(
   @CurrentUser() user: UserPayload,
   @Body(createDebtRecurrenceBodyPipe) body: CreateDebtRecurrenceBody
 ) {
-  const { title, description, value, installmentsCount, recurrence, dayOfMonth, dayOfWeek, month } = body;
+  const { title, description, categoryId, value, installmentsCount, recurrence, dayOfMonth, dayOfWeek, month } = body;
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -187,10 +191,21 @@ async createRecurrence(
     };
   });
 
+  if (categoryId) {
+    const category = await this.prisma.category.findFirst({
+      where: {
+        id: categoryId,
+        OR: [{ userId: null }, { userId: user.sub }]
+      }
+    });
+    if (!category) throw new NotFoundException('Categoria não encontrada');
+  }
+
   await this.prisma.debt.create({
     data: {
       title,
       description: description || '',
+      categoryId: categoryId ?? null,
       userId: user.sub,
       recurrence: recurrence as RecurrenceType,
       installments: {
@@ -206,12 +221,23 @@ async createRecurrence(
     @CurrentUser() user: UserPayload,
     @Body(createDebtBodyPipe) body: CreateDebtBody
   ) {
-    const { description, title, installments } = body
+    const { description, title, categoryId, installments } = body
+
+    if (categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          OR: [{ userId: null }, { userId: user.sub }]
+        }
+      });
+      if (!category) throw new NotFoundException('Categoria não encontrada');
+    }
 
     await this.prisma.debt.create({
       data: {
         title,
         description: description || '',
+        categoryId: categoryId ?? null,
         userId: user.sub,
         installments: {
           create: installments.map((instalment, index) => ({

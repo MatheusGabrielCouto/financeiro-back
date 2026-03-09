@@ -99,6 +99,8 @@ model RecurringPayment {
   lastProcessedAt DateTime?
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@map("recurring_payments")
@@ -118,16 +120,24 @@ model RecurringIncome {
 }
 
 model Category {
-  id          String @id @default(uuid())
+  id          String  @id @default(uuid())
   title       String
   description String
+  icon        String?
+  color       String?
+
+  parentId String?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Category[] @relation("CategoryHierarchy")
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  transactions TransactionOnCategory[]
-  budgets      CategoryBudget[]
-  createdAt    DateTime                @default(now()) @map("created_at")
+  transactions      TransactionOnCategory[]
+  budgets           CategoryBudget[]
+  debts             Debt[]
+  recurringPayments RecurringPayment[]
+  createdAt         DateTime                @default(now()) @map("created_at")
 
   @@map("categories")
 }
@@ -190,6 +200,9 @@ model Debt {
 
   cardId     String?
   creditCard CreditCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   installments Installment[]
   createdAt    DateTime      @default(now()) @map("created_at")

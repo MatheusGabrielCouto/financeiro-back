@@ -100,7 +100,8 @@ Authorization: Bearer {{authToken}}
 {
 	"title": "Aluguel",
 	"value": 1200,
-	"dayOfMonth": 10
+	"dayOfMonth": 10,
+	"categoryId": "uuid-da-categoria"
 }
 ###
 
@@ -125,6 +126,13 @@ Authorization: Bearer {{authToken}}
 
 ###
 
+# @name filter_categories
+GET {{baseUrl}}/category/filter?q=super
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
 # @name create_category
 POST {{baseUrl}}/category
 Content-Type: application/json
@@ -132,7 +140,37 @@ Authorization: Bearer {{authToken}}
 
 {
 	"title": "Salario",
-	"description": "Pagamento salario"
+	"description": "Pagamento salario",
+	"icon": "banknote",
+	"color": "#22C55E"
+}
+
+###
+
+# @name create_subcategory
+POST {{baseUrl}}/category
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Subcategoria Custom",
+	"description": "Minha sub-categoria",
+	"icon": "star",
+	"color": "#F59E0B",
+	"parentId": "uuid-da-categoria-pai"
+}
+
+###
+
+# @name update_category
+PATCH {{baseUrl}}/category/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"title": "Novo titulo",
+	"icon": "heart",
+	"color": "#EF4444"
 }
 
 ###
@@ -283,6 +321,7 @@ Authorization: Bearer {{authToken}}
 {
 	"title": "Gazin 2",
 	"description": "pagamento da gazin 2",
+	"categoryId": "uuid-da-categoria",
 	"installments": [
 		{
 			"value": 100,
@@ -302,6 +341,7 @@ Authorization: Bearer {{authToken}}
 {
 	"title": "Gazin 2",
 	"description": "pagamento da gazin 2",
+	"categoryId": "uuid-da-categoria",
 	"value": 100,
 	"installmentsCount": 10,
 	"dayOfMonth": "15",

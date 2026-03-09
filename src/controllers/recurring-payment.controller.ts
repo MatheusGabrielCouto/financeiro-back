@@ -20,7 +20,8 @@ import { z } from "zod";
 const createRecurringPaymentBodySchema = z.object({
   title: z.string(),
   value: z.number().positive(),
-  dayOfMonth: z.number().min(1).max(31)
+  dayOfMonth: z.number().min(1).max(31),
+  categoryId: z.string().uuid().nullable().optional()
 });
 
 type CreateRecurringPaymentBody = z.infer<
@@ -39,7 +40,7 @@ export class RecurringPaymentController {
   async list(@CurrentUser() user: UserPayload) {
     return this.prisma.recurringPayment.findMany({
       where: { userId: user.sub },
-      omit: { userId: true },
+      include: { category: true },
       orderBy: { createdAt: "desc" }
     });
   }
@@ -50,13 +51,24 @@ export class RecurringPaymentController {
     @CurrentUser() user: UserPayload,
     @Body(createRecurringPaymentBodyPipe) body: CreateRecurringPaymentBody
   ) {
-    const { title, value, dayOfMonth } = body;
+    const { title, value, dayOfMonth, categoryId } = body;
+
+    if (categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          OR: [{ userId: null }, { userId: user.sub }]
+        }
+      });
+      if (!category) throw new NotFoundException("Categoria não encontrada");
+    }
 
     return this.prisma.recurringPayment.create({
       data: {
         title,
         value,
         dayOfMonth,
+        categoryId: categoryId ?? null,
         userId: user.sub
       }
     });
@@ -107,7 +119,7 @@ export class RecurringPaymentController {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
+      const transaction = await tx.transaction.create({
         data: {
           value: recurringPayment.value,
           message: `${recurringPayment.title} (pagamento recorrente)`,
@@ -116,6 +128,15 @@ export class RecurringPaymentController {
           userId: user.sub
         }
       });
+
+      if (recurringPayment.categoryId) {
+        await tx.transactionOnCategory.create({
+          data: {
+            transactionId: transaction.id,
+            categoryId: recurringPayment.categoryId
+          }
+        });
+      }
 
       await tx.user.update({
         where: { id: user.sub },
