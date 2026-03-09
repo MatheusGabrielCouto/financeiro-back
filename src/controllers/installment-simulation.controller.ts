@@ -76,16 +76,41 @@ export class InstallmentSimulationController {
       0
     );
 
-    const debtByMonth = new Map<string, number>();
+    let monthsToAnalyze = Math.max(12, installments);
+    if (installmentsData.length > 0) {
+      const lastInst = installmentsData.reduce((a, b) =>
+        a.dateTransaction > b.dateTransaction ? a : b
+      );
+      const monthsUntilLastDebt =
+        (lastInst.dateTransaction.getFullYear() - now.getFullYear()) * 12 +
+        (lastInst.dateTransaction.getMonth() - now.getMonth());
+      monthsToAnalyze = Math.max(monthsToAnalyze, Math.max(0, monthsUntilLastDebt) + 1);
+    }
+
+    const obligationsByMonth = new Map<string, number>();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthKey = `${currentMonthStart.getFullYear()}-${currentMonthStart.getMonth()}`;
+
+    for (let i = 0; i < monthsToAnalyze; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      obligationsByMonth.set(key, monthlyRecurringPayments);
+    }
+
     for (const inst of installmentsData) {
       const key = `${inst.dateTransaction.getFullYear()}-${inst.dateTransaction.getMonth()}`;
-      debtByMonth.set(key, (debtByMonth.get(key) ?? 0) + inst.value);
+      const instMonthStart = new Date(
+        inst.dateTransaction.getFullYear(),
+        inst.dateTransaction.getMonth(),
+        1
+      );
+      const targetKey =
+        instMonthStart < currentMonthStart ? currentMonthKey : key;
+      obligationsByMonth.set(
+        targetKey,
+        (obligationsByMonth.get(targetKey) ?? monthlyRecurringPayments) + inst.value
+      );
     }
-    const monthlyDebtPayment =
-      debtByMonth.size > 0
-        ? [...debtByMonth.values()].reduce((a, b) => a + b, 0) /
-          debtByMonth.size
-        : 0;
 
     const monthsWithExpenses = new Set(
       transactions.map(
@@ -93,12 +118,55 @@ export class InstallmentSimulationController {
       )
     ).size;
     const totalExpenses = transactions.reduce((s, t) => s + t.value, 0);
-    const monthlyExpenses =
+    const monthlyVariableExpenses =
       monthsWithExpenses > 0 ? totalExpenses / monthsWithExpenses : 0;
 
-    const monthlyObligations = monthlyRecurringPayments + monthlyDebtPayment;
+    const monthlyBreakdown: Array<{
+      month: number;
+      year: number;
+      label: string;
+      obligations: number;
+      newParcel: number;
+      expenses: number;
+      surplus: number;
+      surplusWithParcel: number;
+    }> = [];
+    const surplusByMonth: number[] = [];
+
+    for (let i = 0; i < monthsToAnalyze; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const obligations = obligationsByMonth.get(key) ?? monthlyRecurringPayments;
+      const surplus =
+        monthlyIncome - obligations - monthlyVariableExpenses;
+      surplusByMonth.push(surplus);
+      const hasNewParcel = i < installments;
+      const newParcelValue = hasNewParcel ? monthlyPayment : 0;
+      const surplusWithParcel = surplus - newParcelValue;
+
+      monthlyBreakdown.push({
+        month: d.getMonth() + 1,
+        year: d.getFullYear(),
+        label: `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`,
+        obligations: Math.round(obligations * 100) / 100,
+        newParcel: Math.round(newParcelValue * 100) / 100,
+        expenses: Math.round(monthlyVariableExpenses * 100) / 100,
+        surplus: Math.round(surplus * 100) / 100,
+        surplusWithParcel: Math.round(surplusWithParcel * 100) / 100
+      });
+    }
+
+    const minSurplus = Math.min(...surplusByMonth);
+    const monthlySurplus = minSurplus;
     const totalDebt = installmentsData.reduce((s, i) => s + i.value, 0);
-    const monthlySurplus = monthlyIncome - monthlyObligations - monthlyExpenses;
+
+    let totalObligations = 0;
+    for (let i = 0; i < monthsToAnalyze; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      totalObligations += obligationsByMonth.get(key) ?? monthlyRecurringPayments;
+    }
+    const avgMonthlyObligations = totalObligations / monthsToAnalyze;
 
     const impactPercent =
       monthlyIncome > 0
@@ -122,7 +190,7 @@ export class InstallmentSimulationController {
     }
     let expenseScore = 12.5;
     if (monthlyIncome > 0) {
-      const ratio = monthlyExpenses / monthlyIncome;
+      const ratio = monthlyVariableExpenses / monthlyIncome;
       if (ratio <= 0.5) expenseScore = 25;
       else if (ratio >= 1.2) expenseScore = 0;
       else expenseScore = Math.max(0, 25 - (ratio - 0.5) * 35.7);
@@ -175,13 +243,14 @@ export class InstallmentSimulationController {
       },
       userSituation: {
         monthlyIncome: Math.round(monthlyIncome * 100) / 100,
-        monthlyObligations: Math.round(monthlyObligations * 100) / 100,
-        monthlyExpenses: Math.round(monthlyExpenses * 100) / 100,
+        monthlyObligations: Math.round(avgMonthlyObligations * 100) / 100,
+        monthlyExpenses: Math.round(monthlyVariableExpenses * 100) / 100,
         monthlySurplus: Math.round(monthlySurplus * 100) / 100,
         surplusAfterParcel: Math.round(surplusAfterParcel * 100) / 100,
         totalDebt: Math.round(totalDebt * 100) / 100,
         financialScore
       },
+      monthlyBreakdown,
       recommendation: {
         status: recommendation,
         canAfford,

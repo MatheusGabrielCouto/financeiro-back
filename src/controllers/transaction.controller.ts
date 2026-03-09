@@ -26,18 +26,33 @@ export class TransactionController {
     @CurrentUser() user: UserPayload,
     @Query('month') month: string,
     @Query('year') year: string,
+    @Query('message') message: string,
+    @Query('valueMin') valueMin: string,
+    @Query('valueMax') valueMax: string,
   ) {
     const monthNumber = month ? parseInt(month, 10) : Number((new Date().getMonth() + 1).toString().padStart(2, '0'));
     const yearNumber = year ? parseInt(year, 10) : Number(new Date().getFullYear());
-    
+
+    const where: Record<string, unknown> = {
+      userId: user.sub,
+      createdAt: {
+        gte: new Date(yearNumber, monthNumber - 1, 1),
+        lt: new Date(yearNumber, monthNumber, 1)
+      }
+    };
+
+    if (message) {
+      where.message = { contains: message, mode: 'insensitive' };
+    }
+
+    if (valueMin || valueMax) {
+      where.value = {};
+      if (valueMin) (where.value as { gte?: number }).gte = parseFloat(valueMin);
+      if (valueMax) (where.value as { lte?: number }).lte = parseFloat(valueMax);
+    }
+
     const transactions = await this.prisma.transaction.findMany({
-      where: {
-        userId: user.sub,
-        createdAt: {
-          gte: new Date(yearNumber, monthNumber - 1, 1),
-          lt: new Date(yearNumber, monthNumber, 1)
-        }
-      },
+      where,
       include: {
         categories: {
           select: {

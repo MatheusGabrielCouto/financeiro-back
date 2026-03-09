@@ -1,5 +1,5 @@
 # @baseUrl = https://financeiro-back.onrender.com
-@baseUrl = http://192.168.1.106:3333
+@baseUrl = http://192.168.1.108:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -234,6 +234,13 @@ Authorization: Bearer {{authToken}}
 
 # @name list_transactions
 GET {{baseUrl}}/transaction
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name list_transactions_filtered
+GET {{baseUrl}}/transaction?month=3&year=2025&message=Banco&valueMin=10&valueMax=100
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
