@@ -23,6 +23,7 @@ import { InstallmentSimulationController } from './controllers/installment-simul
 import { EmergencyReserveController } from './controllers/emergency-reserve.controller';
 import { NotificationModule } from './modules/notification.module';
 import { CreditCardModule } from './credit-card/credit-card.module';
+import { JointAccountModule } from './joint-account/joint-account.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CreditCardModule } from './credit-card/credit-card.module';
     PrismaModule,
     NotificationModule,
     CreditCardModule,
+    JointAccountModule,
   ],
   controllers: [
     CreateAccountControleler,

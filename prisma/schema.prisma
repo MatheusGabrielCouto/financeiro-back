@@ -30,8 +30,38 @@ model User {
   recurringIncomes  RecurringIncome[]
   recurringPayments RecurringPayment[]
   pushTokens        PushToken[]
+  jointAccounts     UserJointAccount[]
 
   @@map("users")
+}
+
+model JointAccount {
+  id        String   @id @default(uuid())
+  name      String
+  amount    Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members      UserJointAccount[]
+  transactions Transaction[]
+
+  @@map("joint_accounts")
+}
+
+model UserJointAccount {
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jointAccountId String
+  jointAccount   JointAccount     @relation(fields: [jointAccountId], references: [id], onDelete: Cascade)
+  role           JointAccountRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  @@id([userId, jointAccountId])
+  @@map("user_joint_accounts")
+}
+
+enum JointAccountRole {
+  OWNER
+  MEMBER
 }
 
 model CreditCard {
@@ -125,6 +155,9 @@ model Transaction {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  jointAccountId String?
+  jointAccount   JointAccount? @relation(fields: [jointAccountId], references: [id], onDelete: SetNull)
 
   categories TransactionOnCategory[]
   type       TypeTransaction

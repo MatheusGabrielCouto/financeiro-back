@@ -317,6 +317,86 @@ Authorization: Bearer {{authToken}}
 
 ###
 
+#! Conta Conjunta
+
+# @name list_joint_accounts
+GET {{baseUrl}}/joint-account
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_joint_account
+POST {{baseUrl}}/joint-account
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"name": "Conta Casa"
+}
+
+###
+
+# @name get_joint_account
+GET {{baseUrl}}/joint-account/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name joint_account_amount
+GET {{baseUrl}}/joint-account/00000000-0000-0000-0000-000000000000/amount
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name joint_account_invite
+POST {{baseUrl}}/joint-account/00000000-0000-0000-0000-000000000000/invite
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"email": "parceiro@email.com"
+}
+
+###
+
+# @name joint_account_leave
+POST {{baseUrl}}/joint-account/00000000-0000-0000-0000-000000000000/leave
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name delete_joint_account
+DELETE {{baseUrl}}/joint-account/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name create_transaction_joint
+POST {{baseUrl}}/transaction
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+	"message": "Supermercado",
+	"value": 150,
+	"type": "PAY",
+	"jointAccountId": "00000000-0000-0000-0000-000000000000"
+}
+
+###
+
+# @name list_transactions_joint
+GET {{baseUrl}}/transaction?month=3&year=2025&jointAccountId=00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
 #! Cartão de Crédito
 
 # @name list_credit_cards
