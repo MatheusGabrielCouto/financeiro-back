@@ -1,5 +1,5 @@
-# @baseUrl = https://financeiro-back.onrender.com
-@baseUrl = http://192.168.1.108:3333
+@baseUrl = https://financeiro-back.onrender.com
+# @baseUrl = http://192.168.1.108:3333
 @authToken = {{authenticate.response.body.access_token}}
 
 ###
@@ -10,6 +10,24 @@ Content-Type: application/json
 {
 	"email": "admin@admin.com",
 	"password": "admin"
+}
+
+###
+# @name refresh_token
+POST {{baseUrl}}/sessions/refresh
+Content-Type: application/json
+
+{
+	"refresh_token": "uuid-do-refresh-token"
+}
+
+###
+# @name logout
+POST {{baseUrl}}/sessions/logout
+Content-Type: application/json
+
+{
+	"refresh_token": "uuid-do-refresh-token"
 }
 
 ###

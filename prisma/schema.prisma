@@ -30,9 +30,21 @@ model User {
   recurringIncomes  RecurringIncome[]
   recurringPayments RecurringPayment[]
   pushTokens        PushToken[]
+  refreshTokens     RefreshToken[]
   jointAccounts     UserJointAccount[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
 }
 
 model JointAccount {
