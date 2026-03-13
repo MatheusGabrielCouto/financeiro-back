@@ -185,7 +185,10 @@ export class FuturePurchaseController {
       });
 
       if (amountToAdd > 0) {
-        await tx.transaction.create({
+        const poupancaCategory = await tx.category.findFirst({
+          where: { title: 'Poupança', userId: null },
+        });
+        const transaction = await tx.transaction.create({
           data: {
             value: amountToAdd,
             message: `Depósito na caixinha: ${name}`,
@@ -193,6 +196,14 @@ export class FuturePurchaseController {
             userId: user.sub,
           },
         });
+        if (poupancaCategory) {
+          await tx.transactionOnCategory.create({
+            data: {
+              transactionId: transaction.id,
+              categoryId: poupancaCategory.id,
+            },
+          });
+        }
 
         const userInTx = await tx.user.findUnique({
           where: { id: user.sub },
@@ -239,7 +250,10 @@ export class FuturePurchaseController {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
+      const poupancaCategory = await tx.category.findFirst({
+        where: { title: 'Poupança', userId: null },
+      });
+      const transaction = await tx.transaction.create({
         data: {
           value: body.value,
           message: `Depósito na caixinha: ${purchase.name}`,
@@ -247,6 +261,14 @@ export class FuturePurchaseController {
           userId: user.sub,
         },
       });
+      if (poupancaCategory) {
+        await tx.transactionOnCategory.create({
+          data: {
+            transactionId: transaction.id,
+            categoryId: poupancaCategory.id,
+          },
+        });
+      }
 
       const newAmount = roundMoney(userData.amount - body.value);
       await tx.user.update({
