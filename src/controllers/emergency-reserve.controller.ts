@@ -4,7 +4,7 @@ import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { PrismaService } from "src/prisma/prisma.service";
 
-const MONTHS_HISTORY = 6;
+const MONTHS_HISTORY = 12;
 const DEFAULT_MONTHS_TARGET = 6;
 
 @Controller("/emergency-reserve")
@@ -27,48 +27,87 @@ export class EmergencyReserveController {
       now.getMonth() - MONTHS_HISTORY,
       1
     );
+    const endOfNext12Months = new Date(
+      now.getFullYear(),
+      now.getMonth() + 12,
+      0,
+      23,
+      59,
+      59
+    );
 
-    const [caixinhaTotal, recurringIncomes, transactions] = await Promise.all([
-      this.prisma.futurePurchase.aggregate({
-        where: { userId: user.sub },
-        _sum: { valueAdded: true }
-      }),
-      this.prisma.recurringIncome.findMany({
-        where: { userId: user.sub }
-      }),
-      this.prisma.transaction.findMany({
-        where: {
-          userId: user.sub,
-          type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfHistory },
-          NOT: {
-            OR: [
-              { message: { startsWith: "Depósito na caixinha" } },
-              { message: { startsWith: "Retirada da caixinha" } }
-            ]
-          }
-        },
-        select: { value: true, createdAt: true }
-      })
-    ]);
+    const [userData, recurringIncomes, recurringPayments, installmentsData, transactions] =
+      await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: user.sub },
+          select: { amount: true }
+        }),
+        this.prisma.recurringIncome.findMany({
+          where: { userId: user.sub }
+        }),
+        this.prisma.recurringPayment.findMany({
+          where: { userId: user.sub }
+        }),
+        this.prisma.installment.findMany({
+          where: {
+            debt: { userId: user.sub },
+            status: "SCHEDULE",
+            dateTransaction: { gte: now, lte: endOfNext12Months }
+          },
+          select: { value: true, dateTransaction: true }
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            type: { in: ["PAY", "DEBIT"] },
+            createdAt: { gte: startOfHistory },
+            NOT: {
+              OR: [
+                { message: { startsWith: "Depósito na caixinha" } },
+                { message: { startsWith: "Retirada da caixinha" } },
+                { message: { contains: "(pagamento recorrente)" } }
+              ]
+            }
+          },
+          select: { value: true, createdAt: true }
+        })
+      ]);
 
     const monthlyIncome = recurringIncomes.reduce((s, r) => s + r.value, 0);
+    const monthlyRecurringPayments = recurringPayments.reduce(
+      (s, r) => s + r.value,
+      0
+    );
     const monthsWithExpenses = new Set(
       transactions.map(
         (t) => `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`
       )
     ).size;
     const totalExpenses = transactions.reduce((s, t) => s + t.value, 0);
-    const monthlyExpenses =
+    const monthlyVariableExpenses =
       monthsWithExpenses > 0 ? totalExpenses / monthsWithExpenses : 0;
 
+    const debtByMonth = new Map<string, number>();
+    for (const inst of installmentsData) {
+      const key = `${inst.dateTransaction.getFullYear()}-${inst.dateTransaction.getMonth()}`;
+      debtByMonth.set(key, (debtByMonth.get(key) ?? 0) + inst.value);
+    }
+    const totalDebtNext12Months = [...debtByMonth.values()].reduce(
+      (a, b) => a + b,
+      0
+    );
+    const avgMonthlyDebts = totalDebtNext12Months / 12;
+
     const monthlyNeed =
-      monthlyExpenses > 0 ? monthlyExpenses : monthlyIncome * 0.7;
+      monthlyVariableExpenses + monthlyRecurringPayments + avgMonthlyDebts;
+
+    const fallbackMonthlyNeed =
+      monthlyNeed > 0 ? monthlyNeed : monthlyIncome * 0.7;
     const recommendedReserve =
-      monthlyNeed > 0 ? monthlyNeed * monthsTarget : 0;
-    const currentReserve = caixinhaTotal._sum.valueAdded ?? 0;
+      fallbackMonthlyNeed > 0 ? fallbackMonthlyNeed * monthsTarget : 0;
+    const currentReserve = userData?.amount ?? 0;
     const monthsCovered =
-      monthlyNeed > 0 ? currentReserve / monthlyNeed : 0;
+      fallbackMonthlyNeed > 0 ? currentReserve / fallbackMonthlyNeed : 0;
     const progressPercent =
       recommendedReserve > 0
         ? Math.min(100, (currentReserve / recommendedReserve) * 100)
@@ -79,7 +118,7 @@ export class EmergencyReserveController {
         ? `Você deveria ter R$ ${recommendedReserve.toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-          })} de reserva. Baseado em gastos mensais de R$ ${monthlyNeed.toLocaleString("pt-BR", {
+          })} de reserva. Baseado em gastos mensais de R$ ${fallbackMonthlyNeed.toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
           })}.`
@@ -88,7 +127,7 @@ export class EmergencyReserveController {
     return {
       recommendedReserve: Math.round(recommendedReserve * 100) / 100,
       currentReserve: Math.round(currentReserve * 100) / 100,
-      monthlyExpenses: Math.round(monthlyNeed * 100) / 100,
+      monthlyExpenses: Math.round(fallbackMonthlyNeed * 100) / 100,
       monthsTarget,
       monthsCovered: Math.round(monthsCovered * 10) / 10,
       progressPercent: Math.round(progressPercent * 100) / 100,
