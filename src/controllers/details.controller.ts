@@ -33,8 +33,7 @@ export class DetailsController {
         this.prisma.installment.findMany({
           where: {
             debt: { userId: user.sub, cardId: null },
-            dateTransaction: { gte: startOfMonth, lte: endOfMonth },
-            status: "SCHEDULE"
+            dateTransaction: { gte: startOfMonth, lte: endOfMonth }
           },
           include: { debt: true }
         }),
@@ -132,7 +131,8 @@ export class DetailsController {
       id: inst.id,
       debtTitle: inst.debt.title,
       value: inst.value,
-      date: inst.dateTransaction
+      date: inst.dateTransaction,
+      status: inst.status
     }));
 
     const caixinhaDeposits = caixinhaTransactions
@@ -177,8 +177,6 @@ export class DetailsController {
         balanceAfterExpenses:
           recurringIncomeTotal +
           totalIncomeFromTransactions -
-          recurringPaymentsTotal -
-          debtsOfMonth -
           totalExpenses -
           caixinhaNetInMonth
       },
@@ -293,45 +291,74 @@ export class DetailsController {
     const startOfYear = new Date(yearNumber, 0, 1);
     const endOfYear = new Date(yearNumber, 11, 31, 23, 59, 59);
 
-    const [recurringIncomes, recurringPayments, installments, expenseTransactions, creditTransactions] =
-      await Promise.all([
-        this.prisma.recurringIncome.findMany({
-          where: { userId: user.sub }
-        }),
-        this.prisma.recurringPayment.findMany({
-          where: { userId: user.sub }
-        }),
-        this.prisma.installment.findMany({
-          where: {
-            debt: { userId: user.sub, cardId: null },
-            dateTransaction: { gte: startOfYear, lte: endOfYear },
-            status: "SCHEDULE"
+    const [
+      recurringIncomes,
+      recurringPayments,
+      installments,
+      expenseTransactions,
+      creditTransactions,
+      expenseTransactionsInYear,
+      creditTransactionsInYear
+    ] = await Promise.all([
+      this.prisma.recurringIncome.findMany({
+        where: { userId: user.sub }
+      }),
+      this.prisma.recurringPayment.findMany({
+        where: { userId: user.sub }
+      }),
+      this.prisma.installment.findMany({
+        where: {
+          debt: { userId: user.sub, cardId: null },
+          dateTransaction: { gte: startOfYear, lte: endOfYear }
+        }
+      }),
+      this.prisma.transaction.findMany({
+        where: {
+          userId: user.sub,
+          type: { in: ["PAY", "DEBIT"] },
+          createdAt: { lt: startOfYear },
+          NOT: {
+            OR: [
+              { message: { startsWith: "Depósito na caixinha" } },
+              { message: { startsWith: "Retirada da caixinha" } }
+            ]
           }
-        }),
-        this.prisma.transaction.findMany({
-          where: {
-            userId: user.sub,
-            type: { in: ["PAY", "DEBIT"] },
-            createdAt: { lt: startOfYear },
-            NOT: {
-              OR: [
-                { message: { startsWith: "Depósito na caixinha" } },
-                { message: { startsWith: "Retirada da caixinha" } }
-              ]
-            }
-          },
-          select: { value: true, createdAt: true }
-        }),
-        this.prisma.transaction.findMany({
-          where: {
-            userId: user.sub,
-            type: "CREDIT",
-            createdAt: { lt: startOfYear },
-            NOT: { message: { contains: "(entrada recorrente)" } }
-          },
-          select: { value: true, createdAt: true }
-        })
-      ]);
+        },
+        select: { value: true, createdAt: true }
+      }),
+      this.prisma.transaction.findMany({
+        where: {
+          userId: user.sub,
+          type: "CREDIT",
+          createdAt: { lt: startOfYear },
+          NOT: { message: { contains: "(entrada recorrente)" } }
+        },
+        select: { value: true, createdAt: true }
+      }),
+      this.prisma.transaction.findMany({
+        where: {
+          userId: user.sub,
+          type: { in: ["PAY", "DEBIT"] },
+          createdAt: { gte: startOfYear, lte: endOfYear },
+          NOT: {
+            OR: [
+              { message: { startsWith: "Depósito na caixinha" } },
+              { message: { startsWith: "Retirada da caixinha" } }
+            ]
+          }
+        },
+        select: { value: true, createdAt: true }
+      }),
+      this.prisma.transaction.findMany({
+        where: {
+          userId: user.sub,
+          type: "CREDIT",
+          createdAt: { gte: startOfYear, lte: endOfYear },
+          NOT: { message: { contains: "(entrada recorrente)" } }
+        },
+        select: { value: true, createdAt: true }
+      })
+    ]);
 
     const recurringIncomeMonthly = recurringIncomes.reduce(
       (sum, inc) => sum + inc.value,
@@ -346,12 +373,27 @@ export class DetailsController {
     for (let m = 1; m <= 12; m++) {
       installmentsByMonth.set(m, 0);
     }
-    for (const inst of installments) {
+    for (const inst of installments.filter((i) => i.status === "SCHEDULE")) {
       const month = inst.dateTransaction.getMonth() + 1;
       installmentsByMonth.set(
         month,
         (installmentsByMonth.get(month) ?? 0) + inst.value
       );
+    }
+
+    const incomeByMonth = new Map<number, number>();
+    const expenseByMonth = new Map<number, number>();
+    for (let m = 1; m <= 12; m++) {
+      incomeByMonth.set(m, 0);
+      expenseByMonth.set(m, 0);
+    }
+    for (const t of creditTransactionsInYear) {
+      const month = t.createdAt.getMonth() + 1;
+      incomeByMonth.set(month, (incomeByMonth.get(month) ?? 0) + t.value);
+    }
+    for (const t of expenseTransactionsInYear) {
+      const month = t.createdAt.getMonth() + 1;
+      expenseByMonth.set(month, (expenseByMonth.get(month) ?? 0) + t.value);
     }
 
     const pastMonthsWithData = new Set(
@@ -398,11 +440,16 @@ export class DetailsController {
 
     for (let month = 1; month <= 12; month++) {
       const debtsOfMonth = installmentsByMonth.get(month) ?? 0;
-      const income =
-        recurringIncomeMonthly + avgHistoricalIncome;
+      const actualIncomeInMonth = incomeByMonth.get(month) ?? 0;
+      const actualExpensesInMonth = expenseByMonth.get(month) ?? 0;
+      const otherIncome =
+        actualIncomeInMonth > 0 ? actualIncomeInMonth : avgHistoricalIncome;
+      const income = recurringIncomeMonthly + otherIncome;
       const recurringPayments = recurringPaymentsMonthly;
       const totalExpenses =
-        recurringPayments + debtsOfMonth + avgHistoricalExpenses;
+        actualExpensesInMonth > 0
+          ? actualExpensesInMonth
+          : recurringPayments + debtsOfMonth + avgHistoricalExpenses;
       const net = income - totalExpenses;
 
       monthly.push({

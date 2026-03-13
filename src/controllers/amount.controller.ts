@@ -74,9 +74,12 @@ export class Amount {
         data: { amount: newAmount }
       });
 
+      const salarioCategory = await tx.category.findFirst({
+        where: { title: "Salário", userId: null }
+      });
       const now = new Date();
       for (const { id, value, title } of toProcess) {
-        await tx.transaction.create({
+        const transaction = await tx.transaction.create({
           data: {
             value,
             message: `${title} (entrada recorrente)`,
@@ -85,6 +88,14 @@ export class Amount {
             userId
           }
         });
+        if (salarioCategory) {
+          await tx.transactionOnCategory.create({
+            data: {
+              transactionId: transaction.id,
+              categoryId: salarioCategory.id
+            }
+          });
+        }
         await tx.recurringIncome.update({
           where: { id },
           data: { lastProcessedAt: now }
