@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 
 const MONTHS_HISTORY = 12;
 
@@ -121,7 +122,7 @@ export class ReserveCalculationService {
     const fallbackMonthlyNeed =
       monthlyNeed > 0 ? monthlyNeed : monthlyIncome * 0.7;
 
-    const currentReserve = userData?.amount ?? 0;
+    const currentReserve = roundMoney(userData?.amount ?? 0);
     const monthsOfReserve =
       fallbackMonthlyNeed > 0 ? currentReserve / fallbackMonthlyNeed : 0;
 

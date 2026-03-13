@@ -15,6 +15,7 @@ import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { ZodValidationPipe } from "src/pipes/zod-validation-pipe";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 import { z } from "zod";
 
 const createRecurringPaymentBodySchema = z.object({
@@ -138,9 +139,10 @@ export class RecurringPaymentController {
         });
       }
 
+      const newAmount = roundMoney(userData.amount - recurringPayment.value);
       await tx.user.update({
         where: { id: user.sub },
-        data: { amount: { decrement: recurringPayment.value } }
+        data: { amount: newAmount }
       });
 
       await tx.recurringPayment.update({

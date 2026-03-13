@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { StatusInstallment } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 
 @Injectable()
 export class CreditCardService {
@@ -222,9 +223,10 @@ export class CreditCardService {
         data: { status: StatusInstallment.PAY },
       });
 
+      const newAmount = roundMoney(user.amount - invoice.total);
       await tx.user.update({
         where: { id: userId },
-        data: { amount: { decrement: invoice.total } },
+        data: { amount: newAmount }
       });
     });
 

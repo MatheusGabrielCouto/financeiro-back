@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { ZodValidationPipe } from "src/pipes/zod-validation-pipe";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 import { z } from "zod";
 
 const createInstallmentBodySchema = z.object({
@@ -158,13 +159,10 @@ export class InstallmentController {
       }
     })
 
+    const newAmount = roundMoney(findUser.amount - installment.value);
     await this.prisma.user.update({
-      where: {
-        id: user.sub
-      },
-      data: {
-        amount: findUser.amount - installment.value
-      }
+      where: { id: user.sub },
+      data: { amount: newAmount }
     });
   }
 

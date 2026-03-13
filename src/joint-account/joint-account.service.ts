@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { JointAccountRole } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 
 @Injectable()
 export class JointAccountService {
@@ -42,9 +43,9 @@ export class JointAccountService {
     return memberships.map((m) => ({
       id: m.jointAccount.id,
       name: m.jointAccount.name,
-      amount: m.jointAccount.amount,
+      amount: roundMoney(m.jointAccount.amount),
       role: m.role,
-      createdAt: m.jointAccount.createdAt,
+      createdAt: m.jointAccount.createdAt
     }));
   }
 
@@ -83,7 +84,7 @@ export class JointAccountService {
   async getAmount(jointAccountId: string, userId: string) {
     const membership = await this.ensureMemberAccess(jointAccountId, userId);
     return {
-      amount: membership.jointAccount.amount,
+      amount: roundMoney(membership.jointAccount.amount)
     };
   }
 

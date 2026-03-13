@@ -3,6 +3,7 @@ import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { PrismaService } from "src/prisma/prisma.service";
+import { roundMoney } from "src/utils/money";
 
 @Controller("/amount")
 export class Amount {
@@ -26,7 +27,7 @@ export class Amount {
     });
 
     return {
-      amount: updatedUser?.amount ?? userFiltered.amount
+      amount: roundMoney(updatedUser?.amount ?? userFiltered.amount ?? 0)
     };
   }
 
@@ -62,9 +63,15 @@ export class Amount {
     if (totalToAdd === 0) return;
 
     await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { amount: true }
+      });
+      if (!user) return;
+      const newAmount = roundMoney(user.amount + totalToAdd);
       await tx.user.update({
         where: { id: userId },
-        data: { amount: { increment: totalToAdd } }
+        data: { amount: newAmount }
       });
 
       const now = new Date();

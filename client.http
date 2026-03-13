@@ -308,9 +308,10 @@ Content-Type: application/json
 Authorization: Bearer {{authToken}}
 
 {
-	"message": "Banco",
-	"value": 20.20,
-	"type": "PAY"
+	"message": "Mercado",
+	"value": 14.68,
+	"type": "PAY",
+	"categories": ["uuid-da-categoria"]
 }
 
 ###

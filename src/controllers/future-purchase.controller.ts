@@ -15,6 +15,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserPayload } from 'src/auth/jwt.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ZodValidationPipe } from 'src/pipes/zod-validation-pipe';
+import { roundMoney } from 'src/utils/money';
 import { z } from 'zod';
 
 const createFuturePurchaseBodySchema = z.object({
@@ -193,10 +194,17 @@ export class FuturePurchaseController {
           },
         });
 
-        await tx.user.update({
+        const userInTx = await tx.user.findUnique({
           where: { id: user.sub },
-          data: { amount: { decrement: amountToAdd } },
+          select: { amount: true },
         });
+        if (userInTx) {
+          const newAmount = roundMoney(userInTx.amount - amountToAdd);
+          await tx.user.update({
+            where: { id: user.sub },
+            data: { amount: newAmount },
+          });
+        }
       }
 
       return purchase;
@@ -240,9 +248,10 @@ export class FuturePurchaseController {
         },
       });
 
+      const newAmount = roundMoney(userData.amount - body.value);
       await tx.user.update({
         where: { id: user.sub },
-        data: { amount: { decrement: body.value } },
+        data: { amount: newAmount },
       });
 
       return tx.futurePurchase.update({
@@ -275,6 +284,12 @@ export class FuturePurchaseController {
       );
     }
 
+    const userData = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { amount: true },
+    });
+    if (!userData) throw new NotFoundException('Usuário não encontrado');
+
     return this.prisma.$transaction(async (tx) => {
       await tx.transaction.create({
         data: {
@@ -285,9 +300,10 @@ export class FuturePurchaseController {
         },
       });
 
+      const newAmount = roundMoney(userData.amount + body.value);
       await tx.user.update({
         where: { id: user.sub },
-        data: { amount: { increment: body.value } },
+        data: { amount: newAmount },
       });
 
       return tx.futurePurchase.update({

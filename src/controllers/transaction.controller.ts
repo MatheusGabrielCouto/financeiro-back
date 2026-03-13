@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { roundMoney } from "src/utils/money";
 import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
@@ -6,16 +7,27 @@ import { ZodValidationPipe } from "src/pipes/zod-validation-pipe";
 import { PrismaService } from "src/prisma/prisma.service";
 import { z } from "zod";
 
-const createTransactionBodySchema = z.object({
-  message: z.string(),
-  value: z.number(),
-  type: z.enum(['DEBIT', 'CREDIT', 'PAY']),
-  categories: z.array(z.string().uuid()).optional(),
-  jointAccountId: z.string().uuid().optional(),
-})
+const createTransactionBodySchema = z
+  .object({
+    message: z.string(),
+    value: z.number(),
+    type: z.enum(['DEBIT', 'CREDIT', 'PAY']),
+    categories: z.array(z.string().uuid()).optional(),
+    categoryIds: z.array(z.string().uuid()).optional(),
+    jointAccountId: z.string().uuid().optional()
+  })
+  .transform((data) => ({
+    ...data,
+    categories: [...new Set(data.categories ?? data.categoryIds ?? [])]
+  }))
 
 type CreateTransactionBody = z.infer<typeof createTransactionBodySchema>
 const validationPipeCreateTransaction = new ZodValidationPipe(createTransactionBodySchema)
+
+const updateTransactionCategoriesSchema = z.object({
+  categories: z.array(z.string().uuid())
+})
+const updateTransactionCategoriesPipe = new ZodValidationPipe(updateTransactionCategoriesSchema)
 
 @Controller('/transaction')
 export class TransactionController {
@@ -85,6 +97,49 @@ export class TransactionController {
     return formattedTransactions
   }
 
+  @Patch(':id/categories')
+  @UseGuards(JwtAuthGuard)
+  async updateCategories(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body(updateTransactionCategoriesPipe) body: { categories: string[] }
+  ) {
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id, userId: user.sub }
+    })
+    if (!transaction) throw new NotFoundException('Transação não encontrada')
+
+    const existingCategories = await this.prisma.category.findMany({
+      where: {
+        id: { in: body.categories },
+        OR: [{ userId: null }, { userId: user.sub }]
+      },
+      select: { id: true }
+    })
+    if (existingCategories.length !== body.categories.length) {
+      throw new NotFoundException('Uma ou mais categorias não existem')
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.transactionOnCategory.deleteMany({ where: { transactionId: id } }),
+      this.prisma.transactionOnCategory.createMany({
+        data: body.categories.map((categoryId) => ({
+          transactionId: id,
+          categoryId
+        }))
+      })
+    ])
+
+    const updated = await this.prisma.transaction.findUnique({
+      where: { id },
+      include: { categories: { select: { category: true } } }
+    })
+    return {
+      ...updated,
+      categories: updated!.categories.map((c) => c.category)
+    }
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
@@ -117,16 +172,21 @@ export class TransactionController {
         },
       });
 
-      const newBalance = type === 'PAY' || type === 'DEBIT' ? balance - value : balance + value;
+      const newBalance = roundMoney(
+        type === "PAY" || type === "DEBIT" ? balance - value : balance + value
+      );
       await this.prisma.jointAccount.update({
         where: { id: jointAccountId },
-        data: { amount: newBalance },
+        data: { amount: newBalance }
       });
 
       if (categories?.length) {
         const existingCategories = await this.prisma.category.findMany({
-          where: { id: { in: categories } },
-          select: { id: true },
+          where: {
+            id: { in: categories },
+            OR: [{ userId: null }, { userId: user.sub }]
+          },
+          select: { id: true }
         });
         if (existingCategories.length !== categories.length) {
           throw new NotFoundException('Uma ou mais categorias não existem');
@@ -139,10 +199,13 @@ export class TransactionController {
         });
       }
 
-      return this.prisma.transaction.findUnique({
+      const created = await this.prisma.transaction.findUnique({
         where: { id: transaction.id },
-        include: { categories: { include: { category: true } } },
+        include: { categories: { select: { category: true } } }
       });
+      return created
+        ? { ...created, categories: created.categories.map((c) => c.category) }
+        : created;
     }
 
     const findUser = await this.prisma.user.findUnique({
@@ -158,41 +221,41 @@ export class TransactionController {
       data: { value, message, type, userId: user.sub },
     });
 
+    const newAmount = roundMoney(
+      type === "PAY" || type === "DEBIT"
+        ? findUser.amount - value
+        : findUser.amount + value
+    );
     await this.prisma.user.update({
       where: { id: user.sub },
-      data: {
-        amount: type === 'PAY' || type === 'DEBIT'
-          ? findUser.amount - value
-          : findUser.amount + value
-      }
+      data: { amount: newAmount }
     });
 
-    // 3️⃣ Vincular categorias se fornecidas
     if (categories && categories.length > 0) {
       const existingCategories = await this.prisma.category.findMany({
-        where: { id: { in: categories } },
-        select: { id: true },
+        where: {
+          id: { in: categories },
+          OR: [{ userId: null }, { userId: user.sub }]
+        },
+        select: { id: true }
       });
-
-      const existingCategoryIds = existingCategories.map(cat => cat.id);
-
-      if (existingCategoryIds.length !== categories.length) {
+      if (existingCategories.length !== categories.length) {
         throw new NotFoundException('Uma ou mais categorias não existem');
       }
-
       await this.prisma.transactionOnCategory.createMany({
-        data: existingCategoryIds.map(categoryId => ({
+        data: existingCategories.map((cat) => ({
           transactionId: transaction.id,
-          categoryId,
-        })),
+          categoryId: cat.id
+        }))
       });
     }
 
-    // 4️⃣ Retornar a transação com as categorias associadas
-    return this.prisma.transaction.findUnique({
+    const created = await this.prisma.transaction.findUnique({
       where: { id: transaction.id },
-      include: { categories: { include: { category: true } } },
+      include: { categories: { select: { category: true } } }
     });
+    return created
+      ? { ...created, categories: created.categories.map((c) => c.category) }
+      : created;
   }
-
 }
