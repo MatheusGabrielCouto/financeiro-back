@@ -692,7 +692,7 @@ Authorization: Bearer {{authToken}}
 {
 	"name": "iPhone",
 	"installments": 12,
-	"value": 600
+	"totalValue": 7200
 }
 
 ###

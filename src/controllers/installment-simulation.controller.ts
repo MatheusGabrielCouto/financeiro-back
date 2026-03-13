@@ -13,7 +13,7 @@ const IMPACT_LIMIT_CAUTION = 30;
 const simulateBodySchema = z.object({
   name: z.string().min(1).max(200),
   installments: z.number().min(1).max(60),
-  value: z.number().positive()
+  totalValue: z.number().positive()
 });
 
 type SimulateBody = z.infer<typeof simulateBodySchema>;
@@ -29,9 +29,8 @@ export class InstallmentSimulationController {
     @CurrentUser() user: UserPayload,
     @Body(simulateBodyPipe) body: SimulateBody
   ) {
-    const { name, installments, value } = body;
-    const monthlyPayment = value;
-    const totalValue = value * installments;
+    const { name, installments, totalValue } = body;
+    const monthlyPayment = totalValue / installments;
 
     const now = new Date();
     const startOfHistory = new Date(
