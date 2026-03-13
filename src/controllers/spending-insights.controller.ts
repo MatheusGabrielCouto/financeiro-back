@@ -3,13 +3,17 @@ import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { PrismaService } from "src/prisma/prisma.service";
+import { ReserveCalculationService } from "src/services/reserve-calculation.service";
 
-const THRESHOLD_PERCENT = 20;
+const THRESHOLD_PERCENT = 15;
 const MONTHS_HISTORY = 6;
 
 @Controller("/spending-insights")
 export class SpendingInsightsController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private reserveCalculation: ReserveCalculationService
+  ) {}
 
   @Get("")
   @UseGuards(JwtAuthGuard)
@@ -35,63 +39,107 @@ export class SpendingInsightsController {
     );
     const startOfHistory = new Date(yearNumber, monthNumber - 1 - MONTHS_HISTORY, 1);
 
-    const [currentMonthTx, historicalTx] = await Promise.all([
-      this.prisma.transaction.findMany({
-        where: {
-          userId: user.sub,
-          type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth },
-          NOT: {
-            OR: [
-              { message: { startsWith: "Depósito na caixinha" } },
-              { message: { startsWith: "Retirada da caixinha" } }
-            ]
+    const [reserveData, currentMonthTx, historicalTx, recurringPayments, installmentsOfMonth, totalDebtResult] =
+      await Promise.all([
+        this.reserveCalculation.calculate(user.sub),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            type: { in: ["PAY", "DEBIT"] },
+            createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth },
+            NOT: {
+              OR: [
+                { message: { startsWith: "Depósito na caixinha" } },
+                { message: { startsWith: "Retirada da caixinha" } }
+              ]
+            }
+          },
+          include: {
+            categories: { include: { category: true } }
           }
-        },
-        include: {
-          categories: { include: { category: true } }
-        }
-      }),
-      this.prisma.transaction.findMany({
-        where: {
-          userId: user.sub,
-          type: { in: ["PAY", "DEBIT"] },
-          createdAt: { gte: startOfHistory, lt: startOfCurrentMonth },
-          NOT: {
-            OR: [
-              { message: { startsWith: "Depósito na caixinha" } },
-              { message: { startsWith: "Retirada da caixinha" } }
-            ]
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            type: { in: ["PAY", "DEBIT"] },
+            createdAt: { gte: startOfHistory, lt: startOfCurrentMonth },
+            NOT: {
+              OR: [
+                { message: { startsWith: "Depósito na caixinha" } },
+                { message: { startsWith: "Retirada da caixinha" } }
+              ]
+            }
+          },
+          include: {
+            categories: { include: { category: true } }
           }
-        },
-        include: {
-          categories: { include: { category: true } }
-        }
-      })
-    ]);
+        }),
+        this.prisma.recurringPayment.findMany({
+          where: { userId: user.sub }
+        }),
+        this.prisma.installment.findMany({
+          where: {
+            debt: { userId: user.sub, cardId: null },
+            status: "SCHEDULE",
+            dateTransaction: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
+          },
+          select: { value: true }
+        }),
+        this.prisma.installment.aggregate({
+          where: {
+            debt: { userId: user.sub, cardId: null },
+            status: "SCHEDULE"
+          },
+          _sum: { value: true }
+        })
+      ]);
 
     const currentByCategory = this.buildSpentByCategory(currentMonthTx);
     const historicalByCategory = this.buildSpentByCategory(historicalTx);
 
-    const monthsWithData = this.countMonthsWithTransactions(historicalTx);
+    let monthsWithData = this.countMonthsWithTransactions(historicalTx);
+    const hasCurrentMonthData = currentMonthTx.length > 0;
+    if (monthsWithData === 0 && hasCurrentMonthData) {
+      monthsWithData = 1;
+    } else if (hasCurrentMonthData) {
+      const currentMonthKey = `${yearNumber}-${monthNumber - 1}`;
+      const historicalMonths = new Set(
+        historicalTx.map(
+          (t) =>
+            `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`
+        )
+      );
+      if (!historicalMonths.has(currentMonthKey)) {
+        monthsWithData += 1;
+      }
+    }
+
+    const mergedByCategory = new Map<string, number>();
+    historicalByCategory.forEach((total, id) =>
+      mergedByCategory.set(id, (mergedByCategory.get(id) ?? 0) + total)
+    );
+    currentByCategory.forEach((total, id) =>
+      mergedByCategory.set(id, (mergedByCategory.get(id) ?? 0) + total)
+    );
+
     const avgByCategory = new Map<string, number>();
-    historicalByCategory.forEach((total, categoryId) => {
+    mergedByCategory.forEach((total, categoryId) => {
       avgByCategory.set(
         categoryId,
         monthsWithData > 0 ? total / monthsWithData : 0
       );
     });
 
-    const totalCurrent = Array.from(currentByCategory.values()).reduce(
-      (sum, v) => sum + v,
-      0
-    );
-    const totalHistorical = Array.from(historicalByCategory.values()).reduce(
-      (sum, v) => sum + v,
-      0
-    );
+    const variableTxCurrent = currentMonthTx
+      .filter((t) => !t.message.includes("(pagamento recorrente)"))
+      .reduce((sum, t) => sum + t.value, 0);
+    const recurringTotal = recurringPayments.reduce((s, r) => s + r.value, 0);
+    const installmentsTotal = installmentsOfMonth.reduce((s, i) => s + i.value, 0);
+    const currentMonthSpending =
+      variableTxCurrent + installmentsTotal;
+
     const avgMonthlySpending =
-      monthsWithData > 0 ? totalHistorical / monthsWithData : 0;
+      reserveData.monthlyVariableExpenses + reserveData.avgMonthlyDebts;
 
     const categoryAlerts: Array<{
       categoryId: string;
@@ -137,13 +185,37 @@ export class SpendingInsightsController {
 
     categoryAlerts.sort((a, b) => b.percentageIncrease - a.percentageIncrease);
 
+    const totalDebt = totalDebtResult._sum.value ?? 0;
+    const uncategorizedSpent = currentByCategory.get("__uncategorized__") ?? 0;
+
     const insights: string[] = categoryAlerts.map((a) => a.message);
+
+    if (avgMonthlySpending > 0 && currentMonthSpending > avgMonthlySpending) {
+      const pctAbove =
+        ((currentMonthSpending - avgMonthlySpending) / avgMonthlySpending) * 100;
+      insights.unshift(
+        `Seus gastos deste mês estão ${Math.round(pctAbove)}% acima da sua média (R$ ${(currentMonthSpending - avgMonthlySpending).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} a mais)`
+      );
+    }
+
     insights.push(
       `Seu gasto médio mensal é R$ ${avgMonthlySpending.toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}`
     );
+
+    const tips = this.buildTips({
+      reserveData,
+      currentMonthSpending,
+      avgMonthlySpending,
+      totalDebt,
+      uncategorizedSpent,
+      variableTxCurrent,
+      recurringTotal,
+      installmentsTotal,
+      monthlyIncome: reserveData.monthlyRecurringIncome
+    });
 
     return {
       period: {
@@ -153,10 +225,82 @@ export class SpendingInsightsController {
       },
       insights,
       averageMonthlySpending: Math.round(avgMonthlySpending * 100) / 100,
-      currentMonthSpending: Math.round(totalCurrent * 100) / 100,
+      currentMonthSpending: Math.round(currentMonthSpending * 100) / 100,
+      averageBreakdown: {
+        variable: Math.round(reserveData.monthlyVariableExpenses * 100) / 100,
+        recurring: Math.round(reserveData.monthlyRecurringPayments * 100) / 100,
+        installments: Math.round(reserveData.avgMonthlyDebts * 100) / 100
+      },
+      currentBreakdown: {
+        variable: Math.round(variableTxCurrent * 100) / 100,
+        recurring: Math.round(recurringTotal * 100) / 100,
+        installments: Math.round(installmentsTotal * 100) / 100
+      },
       categoryAlerts,
-      monthsAnalyzed: monthsWithData
+      monthsAnalyzed: monthsWithData,
+      tips
     };
+  }
+
+  private buildTips(ctx: {
+    reserveData: {
+      monthsOfReserve: number;
+      currentReserve: number;
+      monthlyRecurringPayments: number;
+      monthlyVariableExpenses: number;
+      avgMonthlyDebts: number;
+    };
+    currentMonthSpending: number;
+    avgMonthlySpending: number;
+    totalDebt: number;
+    uncategorizedSpent: number;
+    variableTxCurrent: number;
+    recurringTotal: number;
+    installmentsTotal: number;
+    monthlyIncome: number;
+  }): string[] {
+    const tips: string[] = [];
+
+    if (ctx.reserveData.monthsOfReserve < 3 && ctx.reserveData.currentReserve >= 0) {
+      tips.push("Construa uma reserva de emergência de pelo menos 3 meses de gastos");
+    }
+
+    if (ctx.totalDebt > 0) {
+      tips.push("Priorize a quitação de dívidas para reduzir juros e melhorar sua saúde financeira");
+    }
+
+    if (ctx.avgMonthlySpending > 0 && ctx.currentMonthSpending > ctx.avgMonthlySpending * 1.1) {
+      tips.push("Revise seus gastos variáveis e identifique onde pode cortar despesas");
+    }
+
+    if (ctx.uncategorizedSpent > 0 && ctx.variableTxCurrent > 0) {
+      const pctUncategorized =
+        (ctx.uncategorizedSpent / ctx.variableTxCurrent) * 100;
+      if (pctUncategorized > 30) {
+        tips.push("Categorize suas transações para ter visibilidade de onde seu dinheiro está indo");
+      }
+    }
+
+    if (
+      ctx.monthlyIncome > 0 &&
+      ctx.recurringTotal + ctx.reserveData.avgMonthlyDebts > ctx.monthlyIncome * 0.5
+    ) {
+      tips.push("Suas obrigações fixas consomem mais de 50% da renda. Avalie renegociar ou cortar gastos");
+    }
+
+    if (ctx.reserveData.monthlyRecurringPayments > 0 && ctx.monthlyIncome > 0) {
+      const recurringPct =
+        (ctx.reserveData.monthlyRecurringPayments / ctx.monthlyIncome) * 100;
+      if (recurringPct > 40) {
+        tips.push("Pagamentos recorrentes estão altos. Revise assinaturas e contas fixas");
+      }
+    }
+
+    if (tips.length === 0) {
+      tips.push("Sua situação financeira está sob controle. Continue acompanhando seus gastos");
+    }
+
+    return tips.slice(0, 5);
   }
 
   private buildSpentByCategory(
@@ -200,10 +344,10 @@ export class SpendingInsightsController {
   @UseGuards(JwtAuthGuard)
   async getDebtPlanner(
     @CurrentUser() user: UserPayload,
-    @Query("monthlyPayment") monthlyPaymentParam?: string
+    @Query("effectiveMonthlyPayment") effectiveMonthlyPaymentParam?: string
   ) {
-    const monthlyPayment = monthlyPaymentParam
-      ? parseFloat(monthlyPaymentParam)
+    const effectiveMonthlyPaymentInput = effectiveMonthlyPaymentParam
+      ? parseFloat(effectiveMonthlyPaymentParam)
       : 0;
 
     const debts = await this.prisma.debt.findMany({
@@ -227,6 +371,7 @@ export class SpendingInsightsController {
           title: d.title,
           remainingValue,
           minPayment,
+          interestRate: d.interestRate ?? 0,
           installmentsCount: d.installments.length
         };
       });
@@ -238,7 +383,9 @@ export class SpendingInsightsController {
     );
 
     const effectiveMonthlyPayment =
-      monthlyPayment > 0 ? monthlyPayment : totalMinPayment;
+      effectiveMonthlyPaymentInput > 0
+        ? effectiveMonthlyPaymentInput
+        : totalMinPayment;
     const insufficientPayment =
       effectiveMonthlyPayment < totalMinPayment &&
       totalMinPayment > 0;
@@ -254,12 +401,12 @@ export class SpendingInsightsController {
 
     const snowball = this.simulatePayoff(
       debtsWithBalance,
-      monthlyPayment,
+      effectiveMonthlyPayment,
       "snowball"
     );
     const avalanche = this.simulatePayoff(
       debtsWithBalance,
-      monthlyPayment,
+      effectiveMonthlyPayment,
       "avalanche"
     );
 
@@ -281,7 +428,8 @@ export class SpendingInsightsController {
         id: d.id,
         title: d.title,
         remainingValue: Math.round(d.remainingValue * 100) / 100,
-        minPayment: Math.round(d.minPayment * 100) / 100
+        minPayment: Math.round(d.minPayment * 100) / 100,
+        interestRate: d.interestRate ?? 0
       })),
       snowball: {
         ...snowball,
@@ -291,7 +439,7 @@ export class SpendingInsightsController {
       avalanche: {
         ...avalanche,
         description:
-          "Método avalanche: quite primeiro as dívidas maiores para reduzir o custo total"
+          "Método avalanche: quite primeiro as dívidas com maior taxa de juros para reduzir o custo total"
       }
     };
   }
@@ -302,6 +450,7 @@ export class SpendingInsightsController {
       title: string;
       remainingValue: number;
       minPayment: number;
+      interestRate?: number;
     }>,
     monthlyPayment: number,
     method: "snowball" | "avalanche"
@@ -318,7 +467,12 @@ export class SpendingInsightsController {
     const sorted =
       method === "snowball"
         ? [...debts].sort((a, b) => a.remainingValue - b.remainingValue)
-        : [...debts].sort((a, b) => b.remainingValue - a.remainingValue);
+        : [...debts].sort((a, b) => {
+            const rateA = a.interestRate ?? 0;
+            const rateB = b.interestRate ?? 0;
+            if (rateA !== rateB) return rateB - rateA;
+            return b.remainingValue - a.remainingValue;
+          });
 
     const balances = new Map(debts.map((d) => [d.id, d.remainingValue]));
     const payoffOrder: Array<{ title: string; month: number }> = [];

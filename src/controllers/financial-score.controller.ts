@@ -3,93 +3,47 @@ import { CurrentUser } from "src/auth/current-user-decorator";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { UserPayload } from "src/auth/jwt.strategy";
 import { PrismaService } from "src/prisma/prisma.service";
-
-const MONTHS_HISTORY = 6;
+import { ReserveCalculationService } from "src/services/reserve-calculation.service";
 
 @Controller("/financial-score")
 export class FinancialScoreController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private reserveCalculation: ReserveCalculationService
+  ) {}
 
   @Get("")
   @UseGuards(JwtAuthGuard)
   async getScore(@CurrentUser() user: UserPayload) {
-    const now = new Date();
-    const startOfHistory = new Date(
-      now.getFullYear(),
-      now.getMonth() - MONTHS_HISTORY,
-      1
-    );
+    const [reserveData, installments] = await Promise.all([
+      this.reserveCalculation.calculate(user.sub),
+      this.prisma.installment.findMany({
+        where: {
+          debt: { userId: user.sub },
+          status: "SCHEDULE"
+        },
+        select: { value: true }
+      })
+    ]);
 
-    const [caixinhaTotal, recurringIncomes, recurringPayments, installments, transactions] =
-      await Promise.all([
-        this.prisma.futurePurchase.aggregate({
-          where: { userId: user.sub },
-          _sum: { valueAdded: true }
-        }),
-        this.prisma.recurringIncome.findMany({
-          where: { userId: user.sub }
-        }),
-        this.prisma.recurringPayment.findMany({
-          where: { userId: user.sub }
-        }),
-        this.prisma.installment.findMany({
-          where: {
-            debt: { userId: user.sub, cardId: null },
-            status: "SCHEDULE"
-          }
-        }),
-        this.prisma.transaction.findMany({
-          where: {
-            userId: user.sub,
-            type: { in: ["PAY", "DEBIT"] },
-            createdAt: { gte: startOfHistory },
-            NOT: {
-              OR: [
-                { message: { startsWith: "Depósito na caixinha" } },
-                { message: { startsWith: "Retirada da caixinha" } }
-              ]
-            }
-          },
-          select: { value: true, createdAt: true }
-        })
-      ]);
+    const {
+      currentReserve: reserve,
+      monthlyNeed: monthlyExpenses,
+      monthlyRecurringIncome,
+      monthsOfReserve
+    } = reserveData;
 
-    const monthlyIncome = recurringIncomes.reduce((s, r) => s + r.value, 0);
-    const monthlyRecurringPayments = recurringPayments.reduce(
-      (s, r) => s + r.value,
-      0
-    );
     const totalDebt = installments.reduce((s, i) => s + i.value, 0);
+    const monthlyObligations =
+      reserveData.monthlyRecurringPayments + reserveData.avgMonthlyDebts;
 
-    const debtByMonth = new Map<string, number>();
-    for (const inst of installments) {
-      const key = `${inst.dateTransaction.getFullYear()}-${inst.dateTransaction.getMonth()}`;
-      debtByMonth.set(key, (debtByMonth.get(key) ?? 0) + inst.value);
-    }
-    const monthlyDebtPayment =
-      debtByMonth.size > 0
-        ? [...debtByMonth.values()].reduce((a, b) => a + b, 0) /
-          debtByMonth.size
-        : 0;
-    const reserve = caixinhaTotal._sum.valueAdded ?? 0;
-
-    const monthsWithExpenses = new Set(
-      transactions.map((t) => `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`)
-    ).size;
-    const totalExpenses = transactions.reduce((s, t) => s + t.value, 0);
-    const monthlyExpenses =
-      monthsWithExpenses > 0 ? totalExpenses / monthsWithExpenses : 0;
-
-    const monthlyObligations = monthlyRecurringPayments + monthlyDebtPayment;
-
-    const debtScore = this.calcDebtScore(totalDebt, monthlyIncome);
-    const expenseScore = this.calcExpenseScore(monthlyExpenses, monthlyIncome);
-    const incomeScore = this.calcIncomeScore(monthlyIncome);
-    const reserveScore = this.calcReserveScore(
-      reserve,
+    const debtScore = this.calcDebtScore(totalDebt, monthlyRecurringIncome);
+    const expenseScore = this.calcExpenseScore(
       monthlyExpenses,
-      monthlyIncome
+      monthlyRecurringIncome
     );
+    const incomeScore = this.calcIncomeScore(monthlyRecurringIncome);
+    const reserveScore = this.calcReserveScore(monthsOfReserve, reserve);
 
     const totalScore = Math.round(
       Math.min(100, Math.max(0, debtScore + expenseScore + incomeScore + reserveScore))
@@ -110,41 +64,40 @@ export class FinancialScoreController {
       },
       expenses: {
         monthlyAverage: monthlyExpenses,
+        variable: reserveData.monthlyVariableExpenses,
+        recurring: reserveData.monthlyRecurringPayments,
+        debts: reserveData.avgMonthlyDebts,
         score: Math.round(expenseScore * 100) / 100,
         maxScore: 25,
         description:
-          monthlyIncome === 0
+          monthlyRecurringIncome === 0
             ? "Cadastre sua renda para análise"
             : `Gastos médios de R$ ${monthlyExpenses.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2
               })}/mês`
       },
       income: {
-        monthly: monthlyIncome,
+        monthly: monthlyRecurringIncome,
         score: Math.round(incomeScore * 100) / 100,
         maxScore: 25,
         description:
-          monthlyIncome === 0
+          monthlyRecurringIncome === 0
             ? "Cadastre entradas recorrentes"
-            : `Renda de R$ ${monthlyIncome.toLocaleString("pt-BR", {
+            : `Renda de R$ ${monthlyRecurringIncome.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2
               })}/mês`
       },
       reserve: {
         amount: reserve,
-        monthsOfReserve: this.getMonthsOfReserve(
-          reserve,
-          monthlyExpenses,
-          monthlyIncome
-        ),
+        monthsOfReserve,
         score: Math.round(reserveScore * 100) / 100,
         maxScore: 25,
         description:
           reserve <= 0
-            ? "Sem valor em caixinhas"
-            : `Reserva em caixinhas: R$ ${reserve.toLocaleString("pt-BR", {
+            ? "Sem reserva de emergência"
+            : `Reserva: R$ ${reserve.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2
-              })} (${this.getMonthsOfReserve(reserve, monthlyExpenses, monthlyIncome).toFixed(1)} meses)`
+              })} (${monthsOfReserve.toFixed(1)} meses)`
       }
     };
 
@@ -183,28 +136,12 @@ export class FinancialScoreController {
     return 10;
   }
 
-  private calcReserveScore(
-    reserve: number,
-    monthlyExpenses: number,
-    monthlyIncome: number
-  ): number {
-    const months = this.getMonthsOfReserve(reserve, monthlyExpenses, monthlyIncome);
-    if (months >= 6) return 25;
-    if (months >= 3) return 20;
-    if (months >= 1) return 10;
+  private calcReserveScore(monthsOfReserve: number, reserve: number): number {
+    if (monthsOfReserve >= 6) return 25;
+    if (monthsOfReserve >= 3) return 20;
+    if (monthsOfReserve >= 1) return 10;
     if (reserve > 0) return 5;
     return 0;
-  }
-
-  private getMonthsOfReserve(
-    reserve: number,
-    monthlyExpenses: number,
-    monthlyIncome: number
-  ): number {
-    const monthlyNeed =
-      monthlyExpenses > 0 ? monthlyExpenses : monthlyIncome * 0.7;
-    if (monthlyNeed <= 0) return reserve > 0 ? 12 : 0;
-    return reserve / monthlyNeed;
   }
 
   private getRating(score: number): string {

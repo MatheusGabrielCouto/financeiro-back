@@ -251,7 +251,7 @@ Authorization: Bearer {{authToken}}
 ###
 
 # @name debt_planner
-GET {{baseUrl}}/spending-insights/debt-planner?monthlyPayment=3000
+GET {{baseUrl}}/spending-insights/debt-planner?effectiveMonthlyPayment=500
 Content-Type: application/json
 Authorization: Bearer {{authToken}}
 ###

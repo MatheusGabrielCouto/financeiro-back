@@ -201,9 +201,10 @@ model TransactionOnCategory {
 }
 
 model Debt {
-  id          String @id @default(uuid())
-  title       String
-  description String
+  id           String @id @default(uuid())
+  title        String
+  description  String
+  interestRate Float  @default(0) @map("interest_rate")
 
   recurrence RecurrenceType @default(MONTHLY)
 

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "debts" ADD COLUMN "interest_rate" DOUBLE PRECISION NOT NULL DEFAULT 0;

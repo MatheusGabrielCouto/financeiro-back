@@ -24,6 +24,7 @@ import { EmergencyReserveController } from './controllers/emergency-reserve.cont
 import { NotificationModule } from './modules/notification.module';
 import { CreditCardModule } from './credit-card/credit-card.module';
 import { JointAccountModule } from './joint-account/joint-account.module';
+import { ReserveCalculationService } from './services/reserve-calculation.service';
 
 @Module({
   imports: [
@@ -57,6 +58,6 @@ import { JointAccountModule } from './joint-account/joint-account.module';
     InstallmentSimulationController,
     EmergencyReserveController
   ],
-  providers: [],
+  providers: [ReserveCalculationService],
 })
 export class AppModule {}
