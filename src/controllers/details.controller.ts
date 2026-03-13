@@ -179,7 +179,8 @@ export class DetailsController {
           totalIncomeFromTransactions -
           recurringPaymentsTotal -
           debtsOfMonth -
-          totalExpenses
+          totalExpenses -
+          (caixinhaTotal._sum.valueAdded ?? 0)
       },
       recurringIncomeBreakdown,
       recurringPaymentsBreakdown,
