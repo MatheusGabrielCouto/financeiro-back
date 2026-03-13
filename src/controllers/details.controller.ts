@@ -22,7 +22,7 @@ export class DetailsController {
     const startOfMonth = new Date(yearNumber, monthNumber - 1, 1);
     const endOfMonth = new Date(yearNumber, monthNumber, 0, 23, 59, 59);
 
-    const [recurringIncomes, recurringPayments, installments, transactions, debts, caixinhaTransactions, caixinhaTotal] =
+    const [recurringIncomes, recurringPayments, installments, transactions, creditTransactions, debts, caixinhaTransactions, caixinhaTotal] =
       await Promise.all([
         this.prisma.recurringIncome.findMany({
           where: { userId: user.sub }
@@ -53,6 +53,15 @@ export class DetailsController {
           include: {
             categories: { include: { category: true } }
           }
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            type: "CREDIT",
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+            NOT: { message: { contains: "(entrada recorrente)" } }
+          },
+          select: { value: true }
         }),
         this.prisma.debt.findMany({
           where: { userId: user.sub, cardId: null },
@@ -93,6 +102,10 @@ export class DetailsController {
 
     const expensesByCategory = this.buildExpensesByCategory(transactions);
     const totalExpenses = transactions.reduce((sum, t) => sum + t.value, 0);
+    const totalIncomeFromTransactions = creditTransactions.reduce(
+      (sum, t) => sum + t.value,
+      0
+    );
 
     const debtProjections = this.buildDebtProjections(debts);
 
@@ -148,6 +161,10 @@ export class DetailsController {
       },
       summary: {
         recurringIncome: recurringIncomeTotal,
+        outrasEntradas: totalIncomeFromTransactions,
+        totalIncomeFromTransactions,
+        totalIncome:
+          recurringIncomeTotal + totalIncomeFromTransactions,
         recurringPayments: recurringPaymentsTotal,
         debts: debtsOfMonth,
         caixinhaDeposits,
@@ -158,7 +175,8 @@ export class DetailsController {
           recurringIncomeTotal - recurringPaymentsTotal - debtsOfMonth,
         totalExpenses,
         balanceAfterExpenses:
-          recurringIncomeTotal -
+          recurringIncomeTotal +
+          totalIncomeFromTransactions -
           recurringPaymentsTotal -
           debtsOfMonth -
           totalExpenses
@@ -274,7 +292,7 @@ export class DetailsController {
     const startOfYear = new Date(yearNumber, 0, 1);
     const endOfYear = new Date(yearNumber, 11, 31, 23, 59, 59);
 
-    const [recurringIncomes, recurringPayments, installments, transactions] =
+    const [recurringIncomes, recurringPayments, installments, expenseTransactions, creditTransactions] =
       await Promise.all([
         this.prisma.recurringIncome.findMany({
           where: { userId: user.sub }
@@ -302,6 +320,15 @@ export class DetailsController {
             }
           },
           select: { value: true, createdAt: true }
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            userId: user.sub,
+            type: "CREDIT",
+            createdAt: { lt: startOfYear },
+            NOT: { message: { contains: "(entrada recorrente)" } }
+          },
+          select: { value: true, createdAt: true }
         })
       ]);
 
@@ -327,13 +354,28 @@ export class DetailsController {
     }
 
     const pastMonthsWithData = new Set(
-      transactions.map((t) =>
+      expenseTransactions.map((t) =>
         `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`
       )
     ).size;
-    const totalPastExpenses = transactions.reduce((sum, t) => sum + t.value, 0);
+    const totalPastExpenses = expenseTransactions.reduce(
+      (sum, t) => sum + t.value,
+      0
+    );
     const avgHistoricalExpenses =
       pastMonthsWithData > 0 ? totalPastExpenses / pastMonthsWithData : 0;
+
+    const pastMonthsWithIncome = new Set(
+      creditTransactions.map((t) =>
+        `${t.createdAt.getFullYear()}-${t.createdAt.getMonth()}`
+      )
+    ).size;
+    const totalPastIncome = creditTransactions.reduce(
+      (sum, t) => sum + t.value,
+      0
+    );
+    const avgHistoricalIncome =
+      pastMonthsWithIncome > 0 ? totalPastIncome / pastMonthsWithIncome : 0;
 
     const monthly: Array<{
       month: number;
@@ -355,7 +397,8 @@ export class DetailsController {
 
     for (let month = 1; month <= 12; month++) {
       const debtsOfMonth = installmentsByMonth.get(month) ?? 0;
-      const income = recurringIncomeMonthly;
+      const income =
+        recurringIncomeMonthly + avgHistoricalIncome;
       const recurringPayments = recurringPaymentsMonthly;
       const totalExpenses =
         recurringPayments + debtsOfMonth + avgHistoricalExpenses;
@@ -364,7 +407,7 @@ export class DetailsController {
       monthly.push({
         month,
         label: `${month.toString().padStart(2, "0")}/${yearNumber}`,
-        income,
+        income: Math.round(income * 100) / 100,
         expenses: {
           recurringPayments,
           debts: debtsOfMonth,
@@ -380,13 +423,16 @@ export class DetailsController {
       annualHistoricalAverage += avgHistoricalExpenses;
     }
 
+    const annualHistoricalIncome = avgHistoricalIncome * 12;
+
     return {
       year: yearNumber,
       monthly,
       totals: {
-        annualIncome,
+        annualIncome: Math.round(annualIncome * 100) / 100,
         annualRecurringPayments,
         annualDebts,
+        annualHistoricalIncome: Math.round(annualHistoricalIncome * 100) / 100,
         annualHistoricalExpenses: Math.round(annualHistoricalAverage * 100) / 100,
         annualProjectedExpenses: Math.round(
           (annualRecurringPayments + annualDebts + annualHistoricalAverage) *
