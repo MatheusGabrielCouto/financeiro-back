@@ -107,7 +107,11 @@ export class DueItemsNotificationService {
         tokens.map((t) => t.token),
         title,
         body,
-        { type: "due_tomorrow" }
+        {
+          type: "due_tomorrow",
+          screen: "Debts",
+          params: {},
+        }
       );
     }
   }

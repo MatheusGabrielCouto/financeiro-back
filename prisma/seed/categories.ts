@@ -13,6 +13,7 @@ export const defaultCategories = [
     color: '#22C55E',
     children: [
       { title: 'Supermercado', description: 'Compras de alimentos e produtos de higiene', icon: 'shopping-cart', color: '#22C55E' },
+      { title: 'Mercado', description: 'Compras de mercado e supermercado', icon: 'shopping-cart', color: '#22C55E' },
       { title: 'Restaurante', description: 'Refeições em restaurantes e lanchonetes', icon: 'utensils-crossed', color: '#22C55E' },
       { title: 'Delivery', description: 'Pedidos de comida delivery', icon: 'package', color: '#22C55E' },
       { title: 'Padaria', description: 'Pães, bolos e confeitaria', icon: 'croissant', color: '#EAB308' },

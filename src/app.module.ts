@@ -21,10 +21,15 @@ import { FinancialScoreController } from './controllers/financial-score.controll
 import { ReportsController } from './controllers/reports.controller';
 import { InstallmentSimulationController } from './controllers/installment-simulation.controller';
 import { EmergencyReserveController } from './controllers/emergency-reserve.controller';
+import { GroceryController } from './controllers/grocery.controller';
+import { GroceryListController } from './controllers/grocery-list.controller';
+import { GroceryPurchaseController } from './controllers/grocery-purchase.controller';
+import { PantryController } from './controllers/pantry.controller';
 import { NotificationModule } from './modules/notification.module';
 import { CreditCardModule } from './credit-card/credit-card.module';
 import { JointAccountModule } from './joint-account/joint-account.module';
 import { ReserveCalculationService } from './services/reserve-calculation.service';
+import { GroceryService } from './services/grocery.service';
 
 @Module({
   imports: [
@@ -56,8 +61,12 @@ import { ReserveCalculationService } from './services/reserve-calculation.servic
     FinancialScoreController,
     ReportsController,
     InstallmentSimulationController,
-    EmergencyReserveController
+    EmergencyReserveController,
+    GroceryController,
+    GroceryListController,
+    GroceryPurchaseController,
+    PantryController,
   ],
-  providers: [ReserveCalculationService],
+  providers: [ReserveCalculationService, GroceryService],
 })
 export class AppModule {}
